@@ -43,17 +43,17 @@
             size: root.width, root.height
 
         # These create the guidelines for lining up the columns
-        Color:
-            rgba: 1, 1, 1, 1
-        Rectangle:
-            pos: root.width/4, 0
-            size: 1, root.height
-        Rectangle:
-            pos: root.width/2, 0
-            size: 1, root.height
-        Rectangle:
-            pos: root.width*3/4, 0
-            size: 1, root.height
+#        Color:
+#            rgba: 1, 1, 1, 1
+#        Rectangle:
+#            pos: root.width/4, 0
+#            size: 1, root.height
+#        Rectangle:
+#            pos: root.width/2, 0
+#            size: 1, root.height
+#        Rectangle:
+#            pos: root.width*3/4, 0
+#            size: 1, root.height
 
     # Contains the title and exit button
     FloatLayout:
@@ -200,23 +200,17 @@
                         bold: True
                         font_size: 20
                         size: self.size[0], 50
-#                        color: 1, 0, 0, 1
                         background_color: 1, 0, 0, 1
-                        on_press: self.text = 'ON' if self.text == 'OFF' else 'OFF'
-                        on_press: self.background_color = (0, 1, 0, 1) if self.text == 'OFF' else (1, 0, 0, 1)
+                        on_release: main.enable_toggle(self)
 
                 AnchorLayout:
                     anchor_x: 'left'
                     anchor_y: 'center'
                     Button:
                         id: lock
-#                        text: 'LOCK'
                         size: self.size[0], 50
-#                        color: 1, 0, 0, 1
                         background_color: 1, 0, 0, 1
-                        on_press: lock_icon.source = os.path.join(os.getcwd(), 'bin', 'lock-locked.png') if lock_icon.status == 'unlocked' else os.path.join(os.getcwd(), 'bin', 'lock-unlocked.png')
-                        on_press: self.background_color = (0, 1, 0, 1) if lock_icon.status == 'unlocked' else (1, 0, 0, 1)
-                        on_press: lock_icon.status = 'locked' if lock_icon.status == 'unlocked' else 'unlocked'
+                        on_release: main.lock_toggle(self, lock_icon)
                     FloatLayout:
                         Image:
                             id: lock_icon
@@ -243,7 +237,7 @@
                     Label:
                         id: v_in
                         text: '0.000'
-                        disabled: True
+#                        disabled: True
                         size: 40, self.size[1]
 
             BoxLayout:
@@ -261,7 +255,7 @@
                     Label:
                         id: v_out
                         text: '0.000'
-                        disabled: True
+#                        disabled: True
                         size: 40, self.size[1]
 
             BoxLayout:
@@ -279,7 +273,7 @@
                     Label:
                         id: i_in
                         text: '0.000'
-                        disabled: True
+#                        disabled: True
                         size: 40, self.size[1]
 
             BoxLayout:
@@ -297,7 +291,7 @@
                     Label:
                         id: power
                         text: '0.000'
-                        disabled: True
+#                        disabled: True
                         size: 40, self.size[1]
 
             # This creates the enable and key lock buttons
@@ -309,9 +303,9 @@
                     anchor_y: 'center'
                     Button:
                         id: protect
-                        text: 'protect'
+                        text: 'PROTECT'
                         size: self.size[0], 50
-                        background_color: 1, 0, 0, 1
+                        background_color: 0, 1, 0, 1
 
                 AnchorLayout:
                     anchor_x: 'left'
@@ -320,7 +314,7 @@
                         id: cvcc
                         text: 'CC/CV'
                         size: self.size[0], 50
-                        background_color: 1, 0, 0, 1
+                        background_color: 0, 1, 0, 1
 
             AnchorLayout:
                 anchor_x: 'center'

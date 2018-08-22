@@ -1,5 +1,5 @@
 from kivy import require
-require('1.10.0')
+require('1.10.1')
 from kivy.config import Config
 Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'width', '800')
@@ -16,7 +16,7 @@ import os
 class DPH5005Controller(App):
     def build(self):
         main = MainScreen()
-        Clock.schedule_interval(main.update, 1.0 / 60.0)
+        Clock.schedule_interval(main.update, 0.5)
         return main
 
 
@@ -25,13 +25,12 @@ class MainScreen(GridLayout):
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
-        # self.serial_port_menu_button = ObjectProperty()
-        # Builder.load_file('DPH5005Controller.kv')
-        self.serial_port_menu = DropDown()
         self.ports = list()
+        self.serial_port_menu = DropDown()
         self.serial_port_update()
         self.serial_port_menu_button.bind(on_release=self.serial_port_menu.open)
-        self.serial_port_menu.bind(on_select=lambda instance, x: setattr(self.serial_port_menu_button, 'text', x))
+        # self.serial_port_menu.bind(on_select=lambda instance, x: setattr(self.serial_port_menu_button, 'text', x))
+        self.serial_port_menu.bind(on_select=self.serial_connect)
 
     def serial_port_update(self):
         self.ports = serial_ports()
@@ -42,6 +41,31 @@ class MainScreen(GridLayout):
                          font_size=self.serial_port_menu_button.font_size)
             btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
             self.serial_port_menu.add_widget(btn)
+
+    def lock_toggle(self, parent, widget):
+        if widget.status == 'unlocked':
+            widget.source = os.path.join(os.getcwd(), 'bin', 'lock-locked.png')
+            parent.background_color = (0, 1, 0, 1)
+            widget.status = 'locked'
+        else:
+            widget.source = os.path.join(os.getcwd(), 'bin', 'lock-unlocked.png')
+            parent.background_color = (1, 0, 0, 1)
+            widget.status = 'unlocked'
+
+    def enable_toggle(self, widget):
+        if widget.text == 'OFF':
+            widget.text = 'ON'
+            widget.background_color = (0, 1, 0, 1)
+        else:
+            widget.text = 'OFF'
+            widget.background_color = (1, 0, 0, 1)
+
+    def serial_connect(self, widget, value):
+        self.disconnect_serial()
+        print('serial')
+
+    def disconnect_serial(self):
+        pass
 
     def is_number(self, num):
         try:
@@ -54,7 +78,10 @@ class MainScreen(GridLayout):
         App.get_running_app().stop()
 
     def update(self, dt):
-        pass
+        if self.ports != serial_ports():
+            self.serial_port_update()
+            if self.serial_port_menu_button.text not in self.ports:
+                self.serial_port_menu_button.text = 'Select Port'
 
 
 def opendrop(event, widget):
