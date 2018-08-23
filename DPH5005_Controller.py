@@ -9,13 +9,12 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.button import Button
 from kivy.clock import Clock
 from bin.serial_port_scanner import serial_ports
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.lang.builder import Builder
 import os
 
 
-buildkv = Builder.load_file('dph5005_gui_layout.kv')
+buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
 
 
 def on_close():
