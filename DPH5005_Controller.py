@@ -10,17 +10,19 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from bin.serial_port_scanner import serial_ports
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.lang.builder import Builder
 import os
 
 
-class DPH5005Controller(App):
-    def build(self):
-        main = MainScreen()
-        Clock.schedule_interval(main.update, 0.5)
-        return main
+buildkv = Builder.load_file('dph5005_gui_layout.kv')
 
 
-class MainScreen(GridLayout):
+def on_close():
+    App.get_running_app().stop()
+
+
+class MainScreen(Screen):
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -29,7 +31,6 @@ class MainScreen(GridLayout):
         self.serial_port_menu = DropDown()
         self.serial_port_update()
         self.serial_port_menu_button.bind(on_release=self.serial_port_menu.open)
-        # self.serial_port_menu.bind(on_select=lambda instance, x: setattr(self.serial_port_menu_button, 'text', x))
         self.serial_port_menu.bind(on_select=self.serial_connect)
 
     def serial_port_update(self):
@@ -62,6 +63,7 @@ class MainScreen(GridLayout):
 
     def serial_connect(self, widget, value):
         self.disconnect_serial()
+        self.serial_port_menu_button.text = value
         print('serial')
 
     def disconnect_serial(self):
@@ -75,7 +77,7 @@ class MainScreen(GridLayout):
         return True
 
     def on_close(self):
-        App.get_running_app().stop()
+        on_close()
 
     def update(self, dt):
         if self.ports != serial_ports():
@@ -84,8 +86,22 @@ class MainScreen(GridLayout):
                 self.serial_port_menu_button.text = 'Select Port'
 
 
-def opendrop(event, widget):
-    widget.open()
+class GraphScreen(Screen):
+    def on_close(self):
+        on_close()
+
+
+main_screen = MainScreen(name='MainScreen')
+graph_screen = GraphScreen(name='GraphScreen')
+screen_manager = ScreenManager()
+
+
+class DPH5005Controller(App):
+    def build(self):
+        Clock.schedule_interval(main_screen.update, 0.5)
+        screen_manager.add_widget(main_screen)
+        screen_manager.add_widget(graph_screen)
+        return screen_manager
 
 
 if __name__ == '__main__':
