@@ -99,6 +99,22 @@
                             text: 'Select Port'
                             size: 150, 20
 
+                BoxLayout:
+                    orientation: 'horizontal'
+                    AnchorLayout:
+                        anchor_x: 'right'
+                        anchor_y: 'bottom'
+                        Label:
+                            text: 'Address:'
+
+                    AnchorLayout:
+                        anchor_x: 'left'
+                        anchor_y: 'bottom'
+                        TextInput:
+                            id: address
+                            text: '1'
+                            input_filter: 'int'
+
                 # TODO: change the on_text methods to validate both silder and textbox
                 # This creates the voltage controller
                 BoxLayout:
