@@ -59,7 +59,7 @@ class DPH5005:
         # print(self.crc_packer.unpack(self.crc_packer.pack(checksum)))
         return self.crc_packer.pack(checksum)
 
-    def send(self, command, byte_length):
+    def __send(self, command, byte_length):
         if self.port is not None:
             self.port.write(command)
             return self.port.read(byte_length)
@@ -90,29 +90,50 @@ class DPH5005:
         command += self.__get_crc(command)
         expected_response += self.__get_crc(expected_response)
 
-        response = self.send(command, len(expected_response))
-        print(binascii.hexlify(response))
-        print(binascii.hexlify(command))
-        print(len(command))
-        print(binascii.hexlify(expected_response))
-        print(expected_response == response)
-        print(len(expected_response))
-        print(expected_response[:2])
-        print(expected_response[2:4])
+        # Send command and save any response
+        response = self.__send(command, len(expected_response))
+
         if mode == 'read':
             if len(response) == len(expected_response):
-                print('Good Read')
-            else:
-                print('Error in read length')
-        if response[-2:] == self.__get_crc(response[:-2]):
-            print('Good Write')
+                return True, self.__parse_response(response)
+        elif response[-2:] == self.__get_crc(response[:-2]):
+            return True, self.__parse_response(response)
+        return False, dict()
+
+    def __parse_response(self, response):
+        print(response)
+        # Gets the address
+        address = response[:1]
+        address = self.byte_packer.unpack(address)[0]
+        print(address)
+
+        # Gets the mode
+        mode = response[1:2]
+        for m in self.mode.items():
+            if mode == m[1]:
+                mode = m[0]
+                break
+        print(mode)
+
+        # crc = response[-2:]
+        response = response[:-2]
+        response = response[2:]
+        print(response)
+
+        # Gets the extra data
+        if mode == 'read':
+            pass
+        elif mode == 'single_write':
+            pass
+        elif mode == 'multi_write':
+            pass
         else:
-            print('Error in crc')
+            return dict()
 
 if __name__ == "__main__":
     pass
     dph = DPH5005('COM2')
-    dph.send_command(1, 'multi_write', ['LOCK', 2], [0, 2, 3, 4])
+    dph.send_command(1, 'multi_write', ['V-SET', 2], [500, 500, 3, 4])
     # data = b'\x00\x00'
     # data = 0
     # command = b'\x01' + dph.mode['single_write'] + dph.register['LOCK'] + dph.data_packer.pack(data)
