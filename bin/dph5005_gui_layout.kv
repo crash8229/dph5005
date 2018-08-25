@@ -82,38 +82,50 @@
             # This is the first column and contains the controls for the power supply
             BoxLayout:
                 orientation: 'vertical'
+                spacing: 0
+                padding: 0
 
                 # This creates the serial port menu. The dropdown is create is the python script
                 BoxLayout:
                     orientation: 'horizontal'
+                    spacing: 0
+                    size_hint_y: 0.5
                     AnchorLayout:
                         anchor_x: 'right'
+                        anchor_y: 'center'
                         Label:
                             id: serial_port
                             text: 'Serial Port:'
 
                     AnchorLayout:
                         anchor_x: 'left'
+                        anchor_y: 'center'
                         Button:
                             id: dropdown_button
                             text: 'Select Port'
                             size: 150, 20
 
+                # This creates the address field
                 BoxLayout:
                     orientation: 'horizontal'
+                    spacing: 0
+                    size_hint_y: 0.3
                     AnchorLayout:
                         anchor_x: 'right'
-                        anchor_y: 'bottom'
+                        anchor_y: 'top'
                         Label:
                             text: 'Address:'
 
                     AnchorLayout:
                         anchor_x: 'left'
-                        anchor_y: 'bottom'
+                        anchor_y: 'top'
                         TextInput:
                             id: address
                             text: '1'
+                            size: 40, self.size[1]
                             input_filter: 'int'
+
+
 
                 # TODO: change the on_text methods to validate both silder and textbox
                 # This creates the voltage controller

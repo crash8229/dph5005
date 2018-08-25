@@ -45,7 +45,7 @@ class DPH5005:
 
     def connect_port(self, port):
         self.disconnect_port()
-        self.port = serial.Serial(port, timeout=1)
+        self.port = serial.Serial(port, timeout=5)
 
     def disconnect_port(self):
         if self.port is not None:
@@ -54,6 +54,9 @@ class DPH5005:
 
     def __get_crc(self, message):
         checksum = libscrc.modbus(message)
+        # print(hex(checksum))
+        # print(self.crc_packer.pack(checksum))
+        # print(self.crc_packer.unpack(self.crc_packer.pack(checksum)))
         return self.crc_packer.pack(checksum)
 
     def send(self, command, byte_length):
@@ -62,28 +65,54 @@ class DPH5005:
             return self.port.read(byte_length)
         return b'\x00'
 
-    def send_command(self, address=int(), mode=str(), registers=('', ''), data=(0, 0)):
-        message = self.byte_packer.pack(address)
-        message += self.mode[mode]
-        expected_response = message
-        message += self.register[registers[0]]
+    def send_command(self, address=0, mode='', registers=('', 0), data=(0, 0)):
+        # Assemble the command and its expected response
+        command = self.byte_packer.pack(address)
+        command += self.mode[mode]
+        expected_response = command
+        command += self.register[registers[0]]
         if mode == 'read':
-            message += self.data_packer.pack(len(registers))
+            command += self.data_packer.pack(registers[1])
+            expected_response += self.byte_packer.pack(registers[1] * 2)
+            for i in range(0, registers[1]):
+                expected_response += b'\x00\x00'
         elif mode == 'single_write':
-            message += self.data_packer.pack(data[0])
+            command += self.data_packer.pack(data[0])
+            expected_response += self.register[registers[0]]
+            expected_response += self.data_packer.pack(data[0])
         elif mode == 'multi_write':
-            message += self.data_packer.pack(len(registers))
-            message += self.byte_packer.pack(2 * len(data))
-            for datum in data:
-                message += self.data_packer.pack(datum)
-        crc = self.__get_crc(message)
-        command = message + crc
+            command += self.data_packer.pack(registers[1])
+            command += self.byte_packer.pack(2 * registers[1])
+            for i in range(0, registers[1]):
+                command += self.data_packer.pack(data[i])
+            expected_response += self.register[registers[0]]
+            expected_response += self.data_packer.pack(registers[1])
+        command += self.__get_crc(command)
+        expected_response += self.__get_crc(expected_response)
 
+        response = self.send(command, len(expected_response))
+        print(binascii.hexlify(response))
+        print(binascii.hexlify(command))
+        print(len(command))
+        print(binascii.hexlify(expected_response))
+        print(expected_response == response)
+        print(len(expected_response))
+        print(expected_response[:2])
+        print(expected_response[2:4])
+        if mode == 'read':
+            if len(response) == len(expected_response):
+                print('Good Read')
+            else:
+                print('Error in read length')
+        if response[-2:] == self.__get_crc(response[:-2]):
+            print('Good Write')
+        else:
+            print('Error in crc')
 
 if __name__ == "__main__":
     pass
     dph = DPH5005('COM2')
-    dph.send_command(1, 'single_write', ['LOCK'], [1])
+    dph.send_command(1, 'multi_write', ['LOCK', 2], [0, 2, 3, 4])
     # data = b'\x00\x00'
     # data = 0
     # command = b'\x01' + dph.mode['single_write'] + dph.register['LOCK'] + dph.data_packer.pack(data)
