@@ -1,12 +1,12 @@
 import libscrc
 import struct
 import serial
-
+from time import sleep
 
 class DPH5005:
-    def __init__(self, port):
+    def __init__(self):
         self.port = None
-        self.connect_port(port)
+        # self.connect_port(port)
         self.byte_packer = struct.Struct('>B')
         self.data_packer = struct.Struct('>H')
         self.crc_packer = struct.Struct('<H')
@@ -46,15 +46,47 @@ class DPH5005:
 
         self.limits = {'ADDRESS': (1, 255),
                        'V-SET': (0, 50),
-                       'I-SET': (0, 5.1),
+                       'I-SET': (0, 5),
                        'LOCK': (0, 1),
                        'ON/OFF': (0, 1),
                        'B-LED': (0, 5)}
 
+        self.precision = {'ADDRESS': 0,
+                          'V-SET': 2,
+                          'I-SET': 3,
+                          'V-OUT': 2,
+                          'I-OUT': 3,
+                          'POWER': (2, 1),
+                          'V-IN': 2,
+                          'LOCK': 0,
+                          'PROTECT': 0,
+                          'CV/CC': 0,
+                          'ON/OFF': 0,
+                          'B-LED': 0,
+                          'MODEL': 0,
+                          'VERSION': 0}
+
     # Handles connecting to a serial port. If it was connected to a previous port. it will disconnect from it first.
     def connect_port(self, port):
         self.disconnect_port()
-        self.port = serial.Serial(port, timeout=1)
+        try:
+            self.port = serial.Serial(port, timeout=1)
+        except serial.SerialException:
+            return False
+        return True
+
+    def is_port_alive(self):
+        if self.port is None:
+            # print(False)
+            return False
+        try:
+            self.port.in_waiting
+        except (OSError, serial.SerialException):
+            self.disconnect_port()
+            # print(False)
+            return False
+        # print(True)
+        return True
 
     # Handles closing the serial port if one was opened.
     def disconnect_port(self):
@@ -67,7 +99,7 @@ class DPH5005:
         return self.crc_packer.pack(checksum)
 
     def __send(self, command, byte_length):
-        if self.port is not None:
+        if self.is_port_alive():
             self.port.write(command)
             return self.port.read(byte_length)
         return b'\x00'
@@ -173,5 +205,7 @@ class DPH5005:
 
 
 if __name__ == "__main__":
-    dph = DPH5005('COM5')
+    dph = DPH5005()
+    # dph.connect_port('COM2')
+    sleep(3)
     print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))

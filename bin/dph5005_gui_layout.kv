@@ -1,4 +1,5 @@
 #:import os os
+#:import sys sys
 
 
 <Button>:
@@ -11,8 +12,14 @@
 <Label>:
     color: .3, .8, .8, 1
     size_hint: None, None
-    font_size: 15
-    size: 90, 30
+    halign: 'right'
+    font_size: 20
+#    font_size: 15
+#    size: 90, 30
+    size: 120, 30
+
+<IndicatorLabel@Label>:
+    font_size: 20
 
 <TextInput>:
     background_color: .3, .3, .3, 1
@@ -32,7 +39,22 @@
 
 <MainScreen>:
     id: main
-    serial_port_menu_button: dropdown_button
+    serial_port_button: serial_port_button
+    serial_port_status: serial_port_status
+    address: address
+#    address_status: address_status
+#    v_set_slider: v_set_slider
+#    i_set_slider: i_set_slider
+#    b_led_slider: b_led_slider
+    enable: enable
+    lock: lock
+    lock_status: lock_status
+    v_in: v_in
+    v_out: v_out
+    i_out: i_out
+    power: power
+    cvcc: cvcc
+    protect: protect
     GridLayout:
         rows: 2
         cols: 1
@@ -95,43 +117,60 @@
                         anchor_x: 'right'
                         anchor_y: 'center'
                         Label:
-                            id: serial_port
                             text: 'Serial Port:'
 
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
+                        size_hint_x: 0.7
                         Button:
-                            id: dropdown_button
+                            id: serial_port_button
                             text: 'Select Port'
+                            font_size: 15
                             size: 150, 20
+
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
+                        size_hint_x: 0.5
                         Image:
                             id: serial_port_status
-                            status: 'unlocked'
-                            source: os.path.join(os.getcwd(), 'bin', 'x.png')
+                            status: True
+#                            source: os.path.join(sys.path[0], 'bin', 'x.png')
 
                 # This creates the address field
                 BoxLayout:
                     orientation: 'horizontal'
                     spacing: 0
-                    size_hint_y: 0.3
+                    padding: 0
+                    size_hint_y: 0.4
                     AnchorLayout:
                         anchor_x: 'right'
-                        anchor_y: 'top'
+                        anchor_y: 'center'
+                        size_hint_x: 0.7
                         Label:
                             text: 'Address:'
 
                     AnchorLayout:
                         anchor_x: 'left'
-                        anchor_y: 'top'
+                        anchor_y: 'center'
+                        size_hint_x: 0.2
                         TextInput:
                             id: address
                             text: '1'
-                            size: 40, self.size[1]
+#                            size: 40, self.size[1]
                             input_filter: 'int'
+                            status: address_status
+                            on_text_validate: main.validate_address(self, address_status)
+                            on_text: main.warning_address(self, address_status)
+
+                    AnchorLayout:
+                        anchor_x: 'left'
+                        anchor_y: 'center'
+                        size_hint_x: 0.5
+                        Image:
+                            id: address_status
+#                            source: os.path.join(sys.path[0], 'bin', 'x.png')
 
 
 
@@ -144,17 +183,28 @@
                         orientation: 'horizontal'
                         AnchorLayout:
                             anchor_x: 'right'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.7
                             Label:
                                 text: 'Set Voltage:'
 
                         AnchorLayout:
                             anchor_x: 'left'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.2
                             TextInput:
                                 id: v_set
-                                text: str(v_set_slider.value)
-                                on_text: v_set_slider.value = float('{:.4n}'.format(float(self.text))) if main.is_number(self.text) else 0.0
+                                text: '0.0'
+                                status: v_set_status
+                                on_text_validate: main.validate('V-SET', 'text', v_set_slider, self)
+                        AnchorLayout:
+                            anchor_x: 'left'
+                            anchor_y: 'center'
+                            size_hint_x: 0.5
+                            Image:
+                                id: v_set_status
+                                status: False
+                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
 
                     AnchorLayout:
                         anchor_x: 'center'
@@ -164,6 +214,7 @@
                             max: 50
                             step: 0.01
                             id: v_set_slider
+                            on_value: main.validate('V-SET', 'slider', self, v_set)
 
                 # This creates the current controller
                 BoxLayout:
@@ -173,17 +224,29 @@
                         orientation: 'horizontal'
                         AnchorLayout:
                             anchor_x: 'right'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.7
                             Label:
                                 text: 'Set Current:'
 
                         AnchorLayout:
                             anchor_x: 'left'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.2
                             TextInput:
                                 id: i_set
-                                text: str(i_set_slider.value)
-                                on_text: i_set_slider.value = float('{:.4n}'.format(float(self.text))) if main.is_number(self.text) else 0.0
+                                text: '0.0'
+                                status: i_set_status
+                                on_text_validate: main.validate('I-SET', 'text', i_set_slider, self)
+
+                        AnchorLayout:
+                            anchor_x: 'left'
+                            anchor_y: 'center'
+                            size_hint_x: 0.5
+                            Image:
+                                id: i_set_status
+                                status: False
+                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
 
                     AnchorLayout:
                         anchor_x: 'center'
@@ -193,6 +256,7 @@
                             max: 5
                             step: 0.001
                             id: i_set_slider
+                            on_value: main.validate('I-SET', 'slider', self, i_set)
 
                 # This creates the backlight controller
                 BoxLayout:
@@ -202,19 +266,32 @@
                         orientation: 'horizontal'
                         AnchorLayout:
                             anchor_x: 'right'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.7
                             Label:
                                 text: 'Backlight:'
-                                size: 75, self.size[1]
+                                size: 100, self.size[1]
+#                                size: 75, self.size[1]
 
                         AnchorLayout:
                             anchor_x: 'left'
-                            anchor_y: 'bottom'
+                            anchor_y: 'center'
+                            size_hint_x: 0.2
                             TextInput:
                                 id: b_led_set
-                                text: str(int(b_led_slider.value))
+                                text: '0'
+                                status: b_led_status
                                 input_filter: 'int'
-                                on_text: b_led_slider.value = int(self.text) if self.text.isdigit() else 0
+                                on_text_validate: main.validate('B-LED', 'text', b_led_slider, self)
+
+                        AnchorLayout:
+                            anchor_x: 'left'
+                            anchor_y: 'center'
+                            size_hint_x: 0.5
+                            Image:
+                                id: b_led_status
+                                status: False
+                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
 
                     AnchorLayout:
                         anchor_x: 'center'
@@ -223,6 +300,7 @@
                             min: 0
                             max: 5
                             id: b_led_slider
+                            on_value: main.validate('B-LED', 'slider', self, b_led_set)
 
                 # This creates the enable and key lock buttons
                 BoxLayout:
@@ -247,70 +325,52 @@
                             id: lock
                             size: self.size[0], 50
                             background_color: 1, 0, 0, 1
-                            on_release: main.lock_toggle(self, lock_icon)
-                        FloatLayout:
+                            on_release: main.lock_toggle(self, lock_status)
+                        RelativeLayout:
                             Image:
-                                id: lock_icon
+                                id: lock_status
                                 status: 'unlocked'
-                                source: os.path.join(os.getcwd(), 'bin', 'lock-unlocked.png')
-                                pos: lock.pos[0] - lock.width/2 - 8, lock.pos[1] - lock.height/2 + 3
+#                                source: os.path.join(sys.path[0], 'bin', 'lock-unlocked.png')
+#                                pos: 0, 0
+#                                pos: lock.pos[0] - lock.width/2 - 8, lock.pos[1] - lock.height/2 + 3
+                                pos: 22 - lock.width/2, 0
 
             # This is the second column and contains the indicators for the power supply
             BoxLayout:
                 orientation: 'vertical'
-                spacing: 5
+                spacing: 0
                 BoxLayout:
                     orientation: 'horizontal'
                     AnchorLayout:
                         anchor_x: 'right'
                         anchor_y: 'center'
-                        Label:
+                        IndicatorLabel:
                             text: 'V-IN:'
-                            size: 40, self.size[1]
+                            size: 60, self.size[1]
 
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
-                        Label:
+                        IndicatorLabel:
                             id: v_in
                             text: '0.000'
-    #                        disabled: True
-                            size: 43, self.size[1]
+                            size: 40, self.size[1]
 
                 BoxLayout:
                     orientation: 'horizontal'
                     AnchorLayout:
                         anchor_x: 'right'
                         anchor_y: 'center'
-                        Label:
+                        IndicatorLabel:
                             text: 'V-OUT:'
-                            size: 60, self.size[1]
+                            size: 80, self.size[1]
 
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
-                        Label:
+                        IndicatorLabel:
                             id: v_out
                             text: '0.000'
-    #                        disabled: True
-                            size: 38, self.size[1]
-
-                BoxLayout:
-                    orientation: 'horizontal'
-                    AnchorLayout:
-                        anchor_x: 'right'
-                        anchor_y: 'center'
-                        Label:
-                            text: 'I-OUT:'
-                            size: 55, self.size[1]
-
-                    AnchorLayout:
-                        anchor_x: 'left'
-                        anchor_y: 'center'
-                        Label:
-                            id: i_in
-                            text: '0.000'
-    #                        disabled: True
                             size: 40, self.size[1]
 
                 BoxLayout:
@@ -318,44 +378,96 @@
                     AnchorLayout:
                         anchor_x: 'right'
                         anchor_y: 'center'
-                        Label:
+                        IndicatorLabel:
+                            text: 'I-OUT:'
+                            size: 75, self.size[1]
+
+                    AnchorLayout:
+                        anchor_x: 'left'
+                        anchor_y: 'center'
+                        IndicatorLabel:
+                            id: i_out
+                            text: '0.000'
+                            size: 40, self.size[1]
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    AnchorLayout:
+                        anchor_x: 'right'
+                        anchor_y: 'center'
+                        IndicatorLabel:
                             text: 'Power:'
+                            size: 80, self.size[1]
+
+                    AnchorLayout:
+                        anchor_x: 'left'
+                        anchor_y: 'center'
+                        IndicatorLabel:
+                            id: power
+                            text: '0.000'
+                            size: 40, self.size[1]
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    AnchorLayout:
+                        anchor_x: 'right'
+                        anchor_y: 'center'
+                        IndicatorLabel:
+                            text: 'CC/CV:'
                             size: 60, self.size[1]
 
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
-                        Label:
-                            id: power
-                            text: '0.000'
-    #                        disabled: True
+                        IndicatorLabel:
+                            id: cvcc
+                            text: 'CV'
                             size: 40, self.size[1]
 
-                # This creates the enable and key lock buttons
                 BoxLayout:
                     orientation: 'horizontal'
-                    spacing: 10
                     AnchorLayout:
                         anchor_x: 'right'
                         anchor_y: 'center'
-                        Button:
-                            id: protect
-                            text: 'PROTECT'
-                            disabled: True
-#                            disabled_color: self.background_color
-                            size: self.size[0], 50
-                            background_color: 0, 1, 0, 1
+                        IndicatorLabel:
+                            text: 'Protection\nStatus:'
+                            halign: 'right'
+                            size: 110, self.size[1]
 
                     AnchorLayout:
                         anchor_x: 'left'
                         anchor_y: 'center'
-                        Button:
-                            id: cvcc
-                            text: 'CC/CV'
-                            disabled: True
-                            disabled_background_color: self.background_color
-                            size: self.size[0], 50
-                            background_color: 0, 1, 0, 1
+                        IndicatorLabel:
+                            id: protect
+                            text: 'OK'
+                            font_size: 30
+                            color: 0, 1, 0, 1
+                            size: 60, self.size[1]
+
+                # This creates the enable and key lock buttons
+#                BoxLayout:
+#                    orientation: 'horizontal'
+#                    spacing: 10
+#                    AnchorLayout:
+#                        anchor_x: 'right'
+#                        anchor_y: 'center'
+#                        Button:
+#                            id: protect
+#                            text: 'PROTECT'
+#                            disabled: True
+#                            size: self.size[0], 50
+#                            background_color: 1, 0, 0, 1
+#
+#                    AnchorLayout:
+#                        anchor_x: 'left'
+#                        anchor_y: 'center'
+#                        Button:
+#                            id: cvcc
+#                            text: 'CC/CV'
+#                            disabled: True
+#                            disabled_background_color: self.background_color
+#                            size: self.size[0], 50
+#                            background_color: 0, 1, 0, 1
 
                 AnchorLayout:
                     anchor_x: 'center'
@@ -423,7 +535,7 @@
                 Button:
                     id: main_button
                     text: 'Switch to control panel'
-                    size: 200, self.size[1]
+                    size: 220, self.size[1]
                     on_release:
                         root.manager.current = 'MainScreen'
                         root.manager.transition.direction = 'right'
@@ -457,7 +569,7 @@
             GridLayout:
                 rows: 1
                 cols: 3
-                size_hint_y: 0.1
+                size_hint_y: 0.15
                 AnchorLayout:
                     anchor_x: 'right'
                     anchor_y: 'center'
