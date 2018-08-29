@@ -126,6 +126,7 @@ class DPH5005:
                 command += self.data_packer.pack(data[i])
             expected_response += self.registers[registers[0]]
             expected_response += self.data_packer.pack(registers[1])
+        print(command)
         command += self.__get_crc(command)
         expected_response += self.__get_crc(expected_response)
 

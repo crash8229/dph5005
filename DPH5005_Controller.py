@@ -72,19 +72,23 @@ class MainScreen(Screen):
 
     def lock_toggle(self):
         if self.lock.status.status == 'unlocked':
+            self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (1, 0))
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
             self.lock.status.status = 'locked'
         else:
+            self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (0, 0))
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
             self.lock.status.status = 'unlocked'
 
     def enable_toggle(self, widget):
         if self.enable.text == 'OFF':
+            self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (1, 0))
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
         else:
+            self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (0, 0))
             self.enable.text = 'OFF'
             self.enable.background_color = (1, 0, 0, 1)
 
@@ -107,14 +111,15 @@ class MainScreen(Screen):
 
     def validate(self, name, mode, slider, text):
         # if slider.value != float(text.text):
+        value = 0
         if slider.do_not_update:
             slider.do_not_update = False
         elif mode == 'text':
             if text.text == '':
                 text.text = str(slider.value)
             value = self.limit_check(name, float(text.text))
-            print('got text', end=': ')
-            print(value)
+            # print('got text', end=': ')
+            # print(value)
             if name == 'B-LED':
                 text.text = str(int(value))
             else:
@@ -124,13 +129,16 @@ class MainScreen(Screen):
                 slider.value = value
         elif mode == 'slider':
             value = self.limit_check(name, slider.value)
-            print('got slider', end=': ')
-            print(value)
+            # print('got slider', end=': ')
+            # print(value)
             if name == 'B-LED':
                 text.text = str(int(value))
             else:
                 text.text = str(value)
         text.status.source = os.path.join(root, 'blank.png')
+        value = int(value * 10 ** self.device.precision[name])
+        # print(value)
+        self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
 
     def limit_check(self, name, value):
         low, high = self.device.limits[name]
