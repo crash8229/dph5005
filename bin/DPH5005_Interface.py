@@ -1,7 +1,7 @@
 import libscrc
 import struct
 import serial
-from time import sleep
+
 
 class DPH5005:
     def __init__(self):
@@ -206,6 +206,5 @@ class DPH5005:
 
 if __name__ == "__main__":
     dph = DPH5005()
-    # dph.connect_port('COM2')
-    sleep(3)
+    dph.connect_port('COM2')
     print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))

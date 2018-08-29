@@ -42,19 +42,18 @@
     serial_port_button: serial_port_button
     serial_port_status: serial_port_status
     address: address
-#    address_status: address_status
-#    v_set_slider: v_set_slider
-#    i_set_slider: i_set_slider
-#    b_led_slider: b_led_slider
+    v_set: v_set
+    i_set: i_set
+    b_led_set: b_led_set
     enable: enable
     lock: lock
-    lock_status: lock_status
     v_in: v_in
     v_out: v_out
     i_out: i_out
     power: power
     cvcc: cvcc
     protect: protect
+    controllers: controllers
     GridLayout:
         rows: 2
         cols: 1
@@ -125,6 +124,7 @@
                         size_hint_x: 0.7
                         Button:
                             id: serial_port_button
+                            status: serial_port_status
                             text: 'Select Port'
                             font_size: 15
                             size: 150, 20
@@ -135,7 +135,6 @@
                         size_hint_x: 0.5
                         Image:
                             id: serial_port_status
-                            status: True
 #                            source: os.path.join(sys.path[0], 'bin', 'x.png')
 
                 # This creates the address field
@@ -158,10 +157,12 @@
                         TextInput:
                             id: address
                             text: '1'
+                            value: 1
 #                            size: 40, self.size[1]
                             input_filter: 'int'
                             status: address_status
-                            on_text_validate: main.validate_address(self, address_status)
+                            changed: True
+                            on_text_validate: main.validate_address()
                             on_text: main.warning_address(self, address_status)
 
                     AnchorLayout:
@@ -173,167 +174,179 @@
 #                            source: os.path.join(sys.path[0], 'bin', 'x.png')
 
 
-
-                # TODO: change the on_text methods to validate both silder and textbox
-                # This creates the voltage controller
                 BoxLayout:
                     orientation: 'vertical'
-                    spacing: 5
+                    spacing: 0
+                    padding: 0
+                    size_hint_y: 4
+                    disabled: True
+                    id: controllers
+                    # This creates the voltage controller
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: 5
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            AnchorLayout:
+                                anchor_x: 'right'
+                                anchor_y: 'center'
+                                size_hint_x: 0.7
+                                Label:
+                                    text: 'Set Voltage:'
+
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.2
+                                TextInput:
+                                    id: v_set
+                                    text: '0.0'
+                                    value: 0.0
+                                    status: v_set_status
+                                    on_text_validate: main.validate('V-SET', 'text', v_set_slider, self)
+                                    on_text: main.warning_control(self)
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.5
+                                Image:
+                                    id: v_set_status
+    #                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
+
+                        AnchorLayout:
+                            anchor_x: 'center'
+                            anchor_y: 'top'
+                            Slider:
+                                min: 0
+                                max: 50
+                                step: 0.01
+                                id: v_set_slider
+                                do_not_update: False
+                                on_value: main.validate('V-SET', 'slider', self, v_set)
+
+                    # This creates the current controller
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: 5
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            AnchorLayout:
+                                anchor_x: 'right'
+                                anchor_y: 'center'
+                                size_hint_x: 0.7
+                                Label:
+                                    text: 'Set Current:'
+
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.2
+                                TextInput:
+                                    id: i_set
+                                    text: '0.0'
+                                    value: 0.0
+                                    status: i_set_status
+                                    on_text_validate: main.validate('I-SET', 'text', i_set_slider, self)
+                                    on_text: main.warning_control(self)
+
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.5
+                                Image:
+                                    id: i_set_status
+    #                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
+
+                        AnchorLayout:
+                            anchor_x: 'center'
+                            anchor_y: 'top'
+                            Slider:
+                                min: 0
+                                max: 5
+                                step: 0.001
+                                id: i_set_slider
+                                do_not_update: False
+                                on_value: main.validate('I-SET', 'slider', self, i_set)
+
+                    # This creates the backlight controller
+                    BoxLayout:
+                        orientation: 'vertical'
+                        spacing: 5
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            AnchorLayout:
+                                anchor_x: 'right'
+                                anchor_y: 'center'
+                                size_hint_x: 0.7
+                                Label:
+                                    text: 'Backlight:'
+                                    size: 100, self.size[1]
+    #                                size: 75, self.size[1]
+
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.2
+                                TextInput:
+                                    id: b_led_set
+                                    text: '0'
+                                    value: 0
+                                    status: b_led_status
+                                    input_filter: 'int'
+                                    on_text_validate: main.validate('B-LED', 'text', b_led_slider, self)
+                                    on_text: main.warning_control(self)
+
+                            AnchorLayout:
+                                anchor_x: 'left'
+                                anchor_y: 'center'
+                                size_hint_x: 0.5
+                                Image:
+                                    id: b_led_status
+    #                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
+
+                        AnchorLayout:
+                            anchor_x: 'center'
+                            anchor_y: 'top'
+                            Slider:
+                                min: 0
+                                max: 5
+                                id: b_led_slider
+                                do_not_update: False
+                                on_value: main.validate('B-LED', 'slider', self, b_led_set)
+
+                    # This creates the enable and key lock buttons
                     BoxLayout:
                         orientation: 'horizontal'
+                        spacing: 10
                         AnchorLayout:
                             anchor_x: 'right'
                             anchor_y: 'center'
-                            size_hint_x: 0.7
-                            Label:
-                                text: 'Set Voltage:'
+                            Button:
+                                id: enable
+                                text: 'OFF'
+                                bold: True
+                                font_size: 20
+                                size: self.size[0], 50
+                                background_color: 1, 0, 0, 1
+                                on_release: main.enable_toggle(self)
 
                         AnchorLayout:
                             anchor_x: 'left'
                             anchor_y: 'center'
-                            size_hint_x: 0.2
-                            TextInput:
-                                id: v_set
-                                text: '0.0'
-                                status: v_set_status
-                                on_text_validate: main.validate('V-SET', 'text', v_set_slider, self)
-                        AnchorLayout:
-                            anchor_x: 'left'
-                            anchor_y: 'center'
-                            size_hint_x: 0.5
-                            Image:
-                                id: v_set_status
-                                status: False
-                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
-
-                    AnchorLayout:
-                        anchor_x: 'center'
-                        anchor_y: 'top'
-                        Slider:
-                            min: 0
-                            max: 50
-                            step: 0.01
-                            id: v_set_slider
-                            on_value: main.validate('V-SET', 'slider', self, v_set)
-
-                # This creates the current controller
-                BoxLayout:
-                    orientation: 'vertical'
-                    spacing: 5
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        AnchorLayout:
-                            anchor_x: 'right'
-                            anchor_y: 'center'
-                            size_hint_x: 0.7
-                            Label:
-                                text: 'Set Current:'
-
-                        AnchorLayout:
-                            anchor_x: 'left'
-                            anchor_y: 'center'
-                            size_hint_x: 0.2
-                            TextInput:
-                                id: i_set
-                                text: '0.0'
-                                status: i_set_status
-                                on_text_validate: main.validate('I-SET', 'text', i_set_slider, self)
-
-                        AnchorLayout:
-                            anchor_x: 'left'
-                            anchor_y: 'center'
-                            size_hint_x: 0.5
-                            Image:
-                                id: i_set_status
-                                status: False
-                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
-
-                    AnchorLayout:
-                        anchor_x: 'center'
-                        anchor_y: 'top'
-                        Slider:
-                            min: 0
-                            max: 5
-                            step: 0.001
-                            id: i_set_slider
-                            on_value: main.validate('I-SET', 'slider', self, i_set)
-
-                # This creates the backlight controller
-                BoxLayout:
-                    orientation: 'vertical'
-                    spacing: 5
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        AnchorLayout:
-                            anchor_x: 'right'
-                            anchor_y: 'center'
-                            size_hint_x: 0.7
-                            Label:
-                                text: 'Backlight:'
-                                size: 100, self.size[1]
-#                                size: 75, self.size[1]
-
-                        AnchorLayout:
-                            anchor_x: 'left'
-                            anchor_y: 'center'
-                            size_hint_x: 0.2
-                            TextInput:
-                                id: b_led_set
-                                text: '0'
-                                status: b_led_status
-                                input_filter: 'int'
-                                on_text_validate: main.validate('B-LED', 'text', b_led_slider, self)
-
-                        AnchorLayout:
-                            anchor_x: 'left'
-                            anchor_y: 'center'
-                            size_hint_x: 0.5
-                            Image:
-                                id: b_led_status
-                                status: False
-                                source: os.path.join(sys.path[0], 'bin', 'warning.png')
-
-                    AnchorLayout:
-                        anchor_x: 'center'
-                        anchor_y: 'top'
-                        Slider:
-                            min: 0
-                            max: 5
-                            id: b_led_slider
-                            on_value: main.validate('B-LED', 'slider', self, b_led_set)
-
-                # This creates the enable and key lock buttons
-                BoxLayout:
-                    orientation: 'horizontal'
-                    spacing: 10
-                    AnchorLayout:
-                        anchor_x: 'right'
-                        anchor_y: 'center'
-                        Button:
-                            id: enable
-                            text: 'OFF'
-                            bold: True
-                            font_size: 20
-                            size: self.size[0], 50
-                            background_color: 1, 0, 0, 1
-                            on_release: main.enable_toggle(self)
-
-                    AnchorLayout:
-                        anchor_x: 'left'
-                        anchor_y: 'center'
-                        Button:
-                            id: lock
-                            size: self.size[0], 50
-                            background_color: 1, 0, 0, 1
-                            on_release: main.lock_toggle(self, lock_status)
-                        RelativeLayout:
-                            Image:
-                                id: lock_status
-                                status: 'unlocked'
-#                                source: os.path.join(sys.path[0], 'bin', 'lock-unlocked.png')
-#                                pos: 0, 0
-#                                pos: lock.pos[0] - lock.width/2 - 8, lock.pos[1] - lock.height/2 + 3
-                                pos: 22 - lock.width/2, 0
+                            Button:
+                                id: lock
+                                size: self.size[0], 50
+                                background_color: 1, 0, 0, 1
+                                status: lock_status
+                                on_release: main.lock_toggle()
+                            RelativeLayout:
+                                Image:
+                                    id: lock_status
+                                    status: 'unlocked'
+    #                                source: os.path.join(sys.path[0], 'bin', 'lock-unlocked.png')
+    #                                pos: 0, 0
+    #                                pos: lock.pos[0] - lock.width/2 - 8, lock.pos[1] - lock.height/2 + 3
+                                    pos: 22 - lock.width/2, 0
 
             # This is the second column and contains the indicators for the power supply
             BoxLayout:

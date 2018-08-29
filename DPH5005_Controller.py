@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from kivy import require
 require('1.10.1')
 from kivy.config import Config
@@ -33,11 +35,17 @@ class MainScreen(Screen):
 
         self.serial_port_status.source = os.path.join(root, 'blank.png')
         self.address.status.source = os.path.join(root, 'x.png')
-        self.lock_status.source = os.path.join(root, 'lock-unlocked.png')
+        self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
+        self.v_set.status.source = os.path.join(root, 'blank.png')
+        self.i_set.status.source = os.path.join(root, 'blank.png')
+        self.b_led_set.status.source = os.path.join(root, 'blank.png')
 
         self.ports = list()
-        self.address_value = 1
-        self.address_changed = True
+        self.address.changed = True
+
+        # self.v_set_value = 0.0
+        # self.i_set_value = 0.0
+        # self.b_led_set_value = 0
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
@@ -62,62 +70,67 @@ class MainScreen(Screen):
             ports.remove('/dev/ttyAMA0')
         return ports
 
-    def lock_toggle(self, parent, widget):
-        if widget.status == 'unlocked':
-            widget.source = os.path.join(root, 'lock-locked.png')
-            parent.background_color = (0, 1, 0, 1)
-            widget.status = 'locked'
+    def lock_toggle(self):
+        if self.lock.status.status == 'unlocked':
+            self.lock.status.source = os.path.join(root, 'lock-locked.png')
+            self.lock.background_color = (0, 1, 0, 1)
+            self.lock.status.status = 'locked'
         else:
-            widget.source = os.path.join(root, 'lock-unlocked.png')
-            parent.background_color = (1, 0, 0, 1)
-            widget.status = 'unlocked'
+            self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
+            self.lock.background_color = (1, 0, 0, 1)
+            self.lock.status.status = 'unlocked'
 
     def enable_toggle(self, widget):
-        if widget.text == 'OFF':
-            widget.text = 'ON'
-            widget.background_color = (0, 1, 0, 1)
+        if self.enable.text == 'OFF':
+            self.enable.text = 'ON'
+            self.enable.background_color = (0, 1, 0, 1)
         else:
-            widget.text = 'OFF'
-            widget.background_color = (1, 0, 0, 1)
+            self.enable.text = 'OFF'
+            self.enable.background_color = (1, 0, 0, 1)
 
     # TODO: Maybe make it show the value again if the person is not focused and it has been a while
     def warning_address(self, address, status):
-        if address.text != str(self.address_value):
-            status.source = os.path.join(root, 'warning.png')
+        # if address.text != str(self.address.value):
+        status.source = os.path.join(root, 'warning.png')
 
-    def validate_address(self, address, status):
-        if address.text == '':
-            address.text = str(self.address_value)
-            # status.source = os.path.join(root, 'x.png')
-            # self.address = None
-            return
-        elif int(address.text) == self.address_value:
-            return
-        self.address_value = int(self.limit_check('ADDRESS', int(address.text)))
-        address.text = str(self.address_value)
-        self.address_changed = True
-        address.status.source = os.path.join(root, 'x.png')
+    def warning_control(self, textbox):
+        textbox.status.source = os.path.join(root, 'warning.png')
 
-    def validate(self, name, mode, slider, text, ):
-        if slider.value != float(text.text):
-            if mode == 'text':
-                value = self.limit_check(name, float(text.text))
-                print('got text', end=': ')
-                print(value)
-                if name == 'B-LED':
-                    text.text = str(int(value))
-                else:
-                    text.text = str(value)
+    def validate_address(self):
+        if self.address.text == '':
+            self.address.text = str(self.address.value)
+            return
+        self.address.value = int(self.limit_check('ADDRESS', int(self.address.text)))
+        self.address.text = str(self.address.value)
+        self.address.changed = True
+        self.address.status.source = os.path.join(root, 'x.png')
+
+    def validate(self, name, mode, slider, text):
+        # if slider.value != float(text.text):
+        if slider.do_not_update:
+            slider.do_not_update = False
+        elif mode == 'text':
+            if text.text == '':
+                text.text = str(slider.value)
+            value = self.limit_check(name, float(text.text))
+            print('got text', end=': ')
+            print(value)
+            if name == 'B-LED':
+                text.text = str(int(value))
+            else:
+                text.text = str(value)
+            if slider.value != value:
+                slider.do_not_update = True
                 slider.value = value
-            elif mode == 'slider':
-                value = self.limit_check(name, slider.value)
-                print('got slider', end=': ')
-                print(value)
-                if name == 'B-LED':
-                    text.text = str(int(value))
-                else:
-                    text.text = str(value)
-            text.status.source = os.path.join(root, 'check.png')
+        elif mode == 'slider':
+            value = self.limit_check(name, slider.value)
+            print('got slider', end=': ')
+            print(value)
+            if name == 'B-LED':
+                text.text = str(int(value))
+            else:
+                text.text = str(value)
+        text.status.source = os.path.join(root, 'blank.png')
 
     def limit_check(self, name, value):
         low, high = self.device.limits[name]
@@ -137,7 +150,7 @@ class MainScreen(Screen):
         self.device.disconnect_port()
         self.serial_port_button.text = 'Select Port'
         self.serial_port_status.source = os.path.join(root, 'blank.png')
-        self.address_changed = True
+        self.address.changed = True
 
     def serial_connect(self, dropdown, port):
         if port == 'Disconnect':
@@ -148,7 +161,7 @@ class MainScreen(Screen):
             self.serial_port_status.source = os.path.join(root, 'check.png')
         else:
             self.serial_port_status.source = os.path.join(root, 'x.png')
-        self.address_changed = True
+        self.address.changed = True
 
     def is_number(self, num):
         try:
@@ -162,48 +175,58 @@ class MainScreen(Screen):
 
     def update(self, dt):
         self.serial_port_check()
-        if self.address_changed:
+        if self.address.changed:
             self.address_check()
-        if self.address.status.status:
-            print('yay')
 
     def serial_port_check(self):
         if self.serial_port_button.text != 'Select Port' and not self.device.is_port_alive():
             self.serial_port_button.text = 'Select Port'
             self.serial_port_status.source = os.path.join(root, 'blank.png')
-            self.address_changed = True
+            self.address.changed = True
+            self.controllers.disabled = True
         if self.ports != self.get_ports():
             self.serial_port_update()
             if self.serial_port_button.text in self.ports:
                 self.serial_port_button.text = 'Select Port'
                 self.serial_port_status.source = os.path.join(root, 'blank.png')
+                self.address.changed = True
+                self.controllers.disabled = True
 
     def address_check(self):
-        if self.device.is_port_alive() and self.address_value is not None:
-            data = self.device.send_command(self.address_value, 'read', ('MODEL', 1))
+        if self.device.is_port_alive() and self.address.value is not None:
+            data = self.device.send_command(self.address.value, 'read', ('MODEL', 1))
             if data[0] and data[1]['data'][0] == 5205:
                 self.address.status.source = os.path.join(root, 'check.png')
-                self.address_changed = False
+                self.address.changed = False
+                self.controllers.disabled = False
             else:
                 self.address.status.source = os.path.join(root, 'x.png')
-                self.address_changed = False
+                self.address.changed = False
+                self.controllers.disabled = True
         else:
             if self.address.status.source == os.path.join(root, 'check.png'):
                 self.address.status.source = os.path.join(root, 'x.png')
+                self.controllers.disabled = True
 
 
 class GraphScreen(Screen):
+
+    def __init__(self, **kwargs):
+        super(GraphScreen, self).__init__(**kwargs)
+        Clock.schedule_interval(self.update, 0.5)
+
+    def update(self, dt):
+        pass
+
     def on_close(self):
         on_close()
 
 
-main_screen = MainScreen(name='MainScreen')
-graph_screen = GraphScreen(name='GraphScreen')
-screen_manager = ScreenManager()
-
-
 class DPH5005Controller(App):
     def build(self):
+        main_screen = MainScreen(name='MainScreen')
+        graph_screen = GraphScreen(name='GraphScreen')
+        screen_manager = ScreenManager()
         screen_manager.add_widget(main_screen)
         screen_manager.add_widget(graph_screen)
         return screen_manager
