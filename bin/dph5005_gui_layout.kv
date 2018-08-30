@@ -39,21 +39,21 @@
 
 <MainScreen>:
     id: main
+    controllers: controllers
     serial_port_button: serial_port_button
     serial_port_status: serial_port_status
     address: address
     v_set: v_set
     i_set: i_set
-    b_led_set: b_led_set
-    enable: enable
-    lock: lock
-    v_in: v_in
     v_out: v_out
     i_out: i_out
     power: power
-    cvcc: cvcc
+    v_in: v_in
+    lock: lock
     protect: protect
-    controllers: controllers
+    cvcc: cvcc
+    enable: enable
+    b_led_set: b_led_set
     GridLayout:
         rows: 2
         cols: 1
@@ -163,7 +163,7 @@
                             status: address_status
                             changed: True
                             on_text_validate: main.validate_address()
-                            on_text: main.warning_address(self, address_status)
+                            on_text: main.warning_address()
 
                     AnchorLayout:
                         anchor_x: 'left'
@@ -203,6 +203,7 @@
                                     text: '0.0'
                                     value: 0.0
                                     status: v_set_status
+                                    slider: v_set_slider
                                     on_text_validate: main.validate('V-SET', 'text', v_set_slider, self)
                                     on_text: main.warning_control(self)
                             AnchorLayout:
@@ -222,8 +223,10 @@
                                 step: 0.01
                                 id: v_set_slider
                                 do_not_update: False
+                                changed: False
                                 on_value: main.validate('V-SET', 'slider', self, v_set)
 #                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('V-SET', 'slider', self, v_set)
+#                                on_touch_up: main.slider_send_command('V-SET', self.value)
 
                     # This creates the current controller
                     BoxLayout:
@@ -247,6 +250,7 @@
                                     text: '0.0'
                                     value: 0.0
                                     status: i_set_status
+                                    slider: i_set_slider
                                     on_text_validate: main.validate('I-SET', 'text', i_set_slider, self)
                                     on_text: main.warning_control(self)
 
@@ -267,8 +271,10 @@
                                 step: 0.001
                                 id: i_set_slider
                                 do_not_update: False
+                                changed: False
                                 on_value: main.validate('I-SET', 'slider', self, i_set)
 #                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('I-SET', 'slider', self, i_set)
+#                                on_touch_up: main.slider_send_command('I-SET', self.value)
 
                     # This creates the backlight controller
                     BoxLayout:
@@ -294,6 +300,7 @@
                                     text: '0'
                                     value: 0
                                     status: b_led_status
+                                    slider: b_led_slider
                                     input_filter: 'int'
                                     on_text_validate: main.validate('B-LED', 'text', b_led_slider, self)
                                     on_text: main.warning_control(self)
@@ -314,8 +321,10 @@
                                 max: 5
                                 id: b_led_slider
                                 do_not_update: False
-#                                on_value: main.validate('B-LED', 'slider', self, b_led_set)
-                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('B-LED', 'slider', self, b_led_set)
+                                changed: False
+                                on_value: main.validate('B-LED', 'slider', self, b_led_set)
+#                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('B-LED', 'slider', self, b_led_set)
+#                                on_touch_up: main.slider_send_command('B-LED', self.value)
 
                     # This creates the enable and key lock buttons
                     BoxLayout:
@@ -331,7 +340,7 @@
                                 font_size: 20
                                 size: self.size[0], 50
                                 background_color: 1, 0, 0, 1
-                                on_release: main.enable_toggle(self)
+                                on_release: main.enable_toggle()
 
                         AnchorLayout:
                             anchor_x: 'left'

@@ -77,15 +77,12 @@ class DPH5005:
 
     def is_port_alive(self):
         if self.port is None:
-            # print(False)
             return False
         try:
             self.port.in_waiting
         except (OSError, serial.SerialException):
             self.disconnect_port()
-            # print(False)
             return False
-        # print(True)
         return True
 
     # Handles closing the serial port if one was opened.
@@ -94,7 +91,7 @@ class DPH5005:
             self.port.close()
             self.port = None
 
-    def __get_crc(self, message):
+    def get_crc(self, message):
         checksum = libscrc.modbus(message)
         return self.crc_packer.pack(checksum)
 
@@ -126,9 +123,8 @@ class DPH5005:
                 command += self.data_packer.pack(data[i])
             expected_response += self.registers[registers[0]]
             expected_response += self.data_packer.pack(registers[1])
-        print(command)
-        command += self.__get_crc(command)
-        expected_response += self.__get_crc(expected_response)
+        command += self.get_crc(command)
+        expected_response += self.get_crc(expected_response)
 
         # Send command and save any response
         response = self.__send(command, len(expected_response))
@@ -136,7 +132,7 @@ class DPH5005:
         # Checks to see if the response is valid and parses it if it is.
         if mode == 'read' and len(response) == len(expected_response):
             return True, self.__parse_response(command, response)
-        elif response[-2:] == self.__get_crc(response[:-2]):
+        elif response[-2:] == self.get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
             return False, dict()

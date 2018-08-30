@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 from kivy import require
+
 require('1.10.1')
 from kivy.config import Config
+
 Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'width', '800')
 Config.set('graphics', 'height', '480')
@@ -15,7 +17,6 @@ from kivy.lang.builder import Builder
 import os
 from bin.serial_port_scanner import serial_ports
 from bin.DPH5005_Interface import DPH5005
-
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
 buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
@@ -39,6 +40,24 @@ class MainScreen(Screen):
         self.v_set.status.source = os.path.join(root, 'blank.png')
         self.i_set.status.source = os.path.join(root, 'blank.png')
         self.b_led_set.status.source = os.path.join(root, 'blank.png')
+
+        self.update_list = {'V-SET': self.v_set,
+                            'I-SET': self.i_set,
+                            'V-OUT': self.v_out,
+                            'I-OUT': self.i_out,
+                            'POWER': self.power,
+                            'V-IN': self.v_in,
+                            'LOCK': self.lock,
+                            'PROTECT': self.protect,
+                            'CV/CC': self.cvcc,
+                            'ON/OFF': self.enable,
+                            'B-LED': self.b_led_set}
+
+        # self.controller_names = ['V-SET',
+        #                          'I-SET',
+        #                          'LOCK',
+        #                          'ON/OFF',
+        #                          'B-LED']
 
         self.ports = list()
         self.address.changed = True
@@ -70,32 +89,32 @@ class MainScreen(Screen):
             ports.remove('/dev/ttyAMA0')
         return ports
 
-    def lock_toggle(self):
-        if self.lock.status.status == 'unlocked':
+    def lock_toggle(self, state=2):
+        if state == 1 or self.lock.status.status == 'unlocked':
             self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (1, 0))
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
             self.lock.status.status = 'locked'
-        else:
+        elif state == 0 or self.lock.status.status == 'locked':
             self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (0, 0))
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
             self.lock.status.status = 'unlocked'
 
-    def enable_toggle(self, widget):
-        if self.enable.text == 'OFF':
+    def enable_toggle(self, state=2):
+        if state == 1 or self.enable.text == 'OFF':
             self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (1, 0))
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
-        else:
+        elif state == 0 or self.enable.text == 'ON':
             self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (0, 0))
             self.enable.text = 'OFF'
             self.enable.background_color = (1, 0, 0, 1)
 
     # TODO: Maybe make it show the value again if the person is not focused and it has been a while
-    def warning_address(self, address, status):
+    def warning_address(self):
         # if address.text != str(self.address.value):
-        status.source = os.path.join(root, 'warning.png')
+        self.address.status.source = os.path.join(root, 'warning.png')
 
     def warning_control(self, textbox):
         textbox.status.source = os.path.join(root, 'warning.png')
@@ -111,15 +130,12 @@ class MainScreen(Screen):
 
     def validate(self, name, mode, slider, text):
         # if slider.value != float(text.text):
-        value = 0
         if slider.do_not_update:
             slider.do_not_update = False
         elif mode == 'text':
             if text.text == '':
                 text.text = str(slider.value)
             value = self.limit_check(name, float(text.text))
-            # print('got text', end=': ')
-            # print(value)
             if name == 'B-LED':
                 text.text = str(int(value))
             else:
@@ -127,18 +143,21 @@ class MainScreen(Screen):
             if slider.value != value:
                 slider.do_not_update = True
                 slider.value = value
+            slider.changed = True
+            # value = int(value * 10 ** self.device.precision[name])
+            # self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
         elif mode == 'slider':
             value = self.limit_check(name, slider.value)
-            # print('got slider', end=': ')
-            # print(value)
             if name == 'B-LED':
                 text.text = str(int(value))
             else:
                 text.text = str(value)
+            slider.changed = True
         text.status.source = os.path.join(root, 'blank.png')
-        value = int(value * 10 ** self.device.precision[name])
-        # print(value)
-        self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
+
+    # def slider_send_command(self, name, value):
+    #     value = int(value * 10 ** self.device.precision[name])
+    #     self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
 
     def limit_check(self, name, value):
         low, high = self.device.limits[name]
@@ -183,8 +202,9 @@ class MainScreen(Screen):
 
     def update(self, dt):
         self.serial_port_check()
-        if self.address.changed:
-            self.address_check()
+        self.address_check()
+        self.slider_check()
+        self.read_device()
 
     def serial_port_check(self):
         if self.serial_port_button.text != 'Select Port' and not self.device.is_port_alive():
@@ -201,20 +221,59 @@ class MainScreen(Screen):
                 self.controllers.disabled = True
 
     def address_check(self):
-        if self.device.is_port_alive() and self.address.value is not None:
-            data = self.device.send_command(self.address.value, 'read', ('MODEL', 1))
-            if data[0] and data[1]['data'][0] == 5205:
-                self.address.status.source = os.path.join(root, 'check.png')
-                self.address.changed = False
-                self.controllers.disabled = False
+        if self.address.changed:
+            if self.device.is_port_alive() and self.address.value is not None:
+                data = self.device.send_command(self.address.value, 'read', ('MODEL', 1))
+                if data[0] and data[1]['data'][0] == 5205:
+                    self.address.status.source = os.path.join(root, 'check.png')
+                    self.address.changed = False
+                    self.controllers.disabled = False
+                else:
+                    self.address.status.source = os.path.join(root, 'x.png')
+                    self.address.changed = False
+                    self.controllers.disabled = True
             else:
-                self.address.status.source = os.path.join(root, 'x.png')
-                self.address.changed = False
-                self.controllers.disabled = True
-        else:
-            if self.address.status.source == os.path.join(root, 'check.png'):
-                self.address.status.source = os.path.join(root, 'x.png')
-                self.controllers.disabled = True
+                if self.address.status.source == os.path.join(root, 'check.png'):
+                    self.address.status.source = os.path.join(root, 'x.png')
+                    self.controllers.disabled = True
+
+    def slider_check(self):
+        if not self.controllers.disabled and self.device.is_port_alive():
+            if self.v_set.slider.changed or self.i_set.slider.changed:
+                data = list()
+                data.append(int(self.v_set.slider.value * 10 ** self.device.precision['V-SET']))
+                data.append(int(self.i_set.slider.value * 10 ** self.device.precision['I-SET']))
+                self.device.send_command(self.address.value, 'multiple_write', ('V-SET', 2), data)
+                self.v_set.slider.changed = False
+                self.i_set.slider.changed = False
+            if self.b_led_set.slider.changed:
+                data = (int(self.b_led_set.slider.value * 10 ** self.device.precision['B-LED']), 0)
+                self.device.send_command(self.address.value, 'single_write', ('B-LED', 1), data)
+                self.b_led_set.slider.changed = False
+
+    def read_device(self):
+        if not self.controllers.disabled and self.device.is_port_alive():
+            # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
+            display_list = [self.v_set, self.i_set, self.v_set]
+            check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
+            if check:
+                print(data)
+                return
+                data = dict(zip(data['registers'], data['data']))
+                for item in data.items():
+                    name, datum = item
+                    if name == 'V-SET' or name == 'I-SET' or name == 'B-LED':
+                        pass
+                    elif name == 'LOCK':
+                        pass
+                    elif name == 'ON/OFF':
+                        pass
+                    elif name == 'POWER':
+                        pass
+                    else:
+                        f = '{:.' + str(self.device.precision[name]) + 'f}'
+                        self.update_list[name].text = f.format(datum * 10 ** (-1 * self.device.precision[name]))
+
 
 
 class GraphScreen(Screen):
