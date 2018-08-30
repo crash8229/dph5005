@@ -258,16 +258,21 @@ class MainScreen(Screen):
             check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
             if check:
                 print(data)
-                return
                 data = dict(zip(data['registers'], data['data']))
                 for item in data.items():
                     name, datum = item
                     if name == 'V-SET' or name == 'I-SET' or name == 'B-LED':
-                        pass
+                        if name == 'B-LED':
+                            value = '{:d}'.format(datum * 10 ** (-1 * self.device.precision[name]))
+                            self.update_list[name].text = value
+                        else:
+                            f = '{:.' + str(self.device.precision[name]) + 'f}'
+                            value = f.format(datum * 10 ** (-1 * self.device.precision[name]))
+                            self.update_list[name].text = value
                     elif name == 'LOCK':
-                        pass
+                        self.lock_toggle(datum)
                     elif name == 'ON/OFF':
-                        pass
+                        self.enable_toggle(datum)
                     elif name == 'POWER':
                         pass
                     else:
