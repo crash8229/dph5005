@@ -14,6 +14,7 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.lang.builder import Builder
+from kivy.uix.slider import Slider
 import os
 from bin.serial_port_scanner import serial_ports
 from bin.DPH5005_Interface import DPH5005
@@ -26,11 +27,12 @@ def on_close():
     App.get_running_app().stop()
 
 
+# TODO: It doesn't detect if the device has shutoff, due to serial port being powered by usb.
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 0.5)
+        Clock.schedule_interval(self.update, 0.01)
 
         self.device = DPH5005()
 
@@ -89,27 +91,39 @@ class MainScreen(Screen):
             ports.remove('/dev/ttyAMA0')
         return ports
 
-    def lock_toggle(self, state=2):
-        if state == 1 or self.lock.status.status == 'unlocked':
+    def lock_toggle(self):
+        # if state == 1 or (self.lock.value == 0 and state == 2):
+        if self.lock.value == 0:
             self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (1, 0))
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
-            self.lock.status.status = 'locked'
-        elif state == 0 or self.lock.status.status == 'locked':
+            # self.lock.status.status = 'locked'
+            self.lock.value = 1
+            self.lock.changed = True
+        # elif state == 0 or (self.lock.value == 1 and state == 2):
+        elif self.lock.value == 1:
             self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (0, 0))
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
-            self.lock.status.status = 'unlocked'
+            # self.lock.status.status = 'unlocked'
+            self.lock.value = 0
+            self.lock.changed = True
 
-    def enable_toggle(self, state=2):
-        if state == 1 or self.enable.text == 'OFF':
+    def enable_toggle(self):
+        # if state == 1 or (self.enable.text == 'OFF' and state == 2):
+        if self.enable.value == 0:
             self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (1, 0))
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
-        elif state == 0 or self.enable.text == 'ON':
+            self.enable.value = 1
+            self.enable.changed = True
+        # elif state == 0 or (self.enable.text == 'ON' and state == 2):
+        elif self.enable.value == 1:
             self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (0, 0))
             self.enable.text = 'OFF'
             self.enable.background_color = (1, 0, 0, 1)
+            self.enable.value = 0
+            self.enable.changed = True
 
     # TODO: Maybe make it show the value again if the person is not focused and it has been a while
     def warning_address(self):
@@ -128,31 +142,33 @@ class MainScreen(Screen):
         self.address.changed = True
         self.address.status.source = os.path.join(root, 'x.png')
 
-    def validate(self, name, mode, slider, text):
+    def validate_text(self, name, slider, text):
+        if text.text == '':
+            text.text = str(slider.value)
+        value = self.limit_check(name, float(text.text))
+        if name == 'B-LED':
+            text.text = str(int(value))
+        else:
+            text.text = str(value)
+        if slider.value != value:
+            slider.do_not_update = True
+            slider.value = value
+        text.changed = True
+        slider.changed = True
+        # value = int(value * 10 ** self.device.precision[name])
+        # self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
+        text.status.source = os.path.join(root, 'blank.png')
+
+    def validate_slider(self, name, slider, text):
         # if slider.value != float(text.text):
         if slider.do_not_update:
             slider.do_not_update = False
-        elif mode == 'text':
-            if text.text == '':
-                text.text = str(slider.value)
-            value = self.limit_check(name, float(text.text))
-            if name == 'B-LED':
-                text.text = str(int(value))
-            else:
-                text.text = str(value)
-            if slider.value != value:
-                slider.do_not_update = True
-                slider.value = value
-            slider.changed = True
-            # value = int(value * 10 ** self.device.precision[name])
-            # self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
-        elif mode == 'slider':
-            value = self.limit_check(name, slider.value)
-            if name == 'B-LED':
-                text.text = str(int(value))
-            else:
-                text.text = str(value)
-            slider.changed = True
+        value = self.limit_check(name, slider.value)
+        if name == 'B-LED':
+            text.text = str(int(value))
+        else:
+            text.text = str(value)
+        text.changed = True
         text.status.source = os.path.join(root, 'blank.png')
 
     # def slider_send_command(self, name, value):
@@ -199,6 +215,10 @@ class MainScreen(Screen):
 
     def on_close(self):
         on_close()
+
+    def slider_send(self, slider):
+        slider.changed = True
+        return True
 
     def update(self, dt):
         self.serial_port_check()
@@ -254,30 +274,71 @@ class MainScreen(Screen):
     def read_device(self):
         if not self.controllers.disabled and self.device.is_port_alive():
             # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
-            display_list = [self.v_set, self.i_set, self.v_set]
             check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
             if check:
-                print(data)
+                # TODO: If value is not the same, don't bother writing it to the display.
                 data = dict(zip(data['registers'], data['data']))
                 for item in data.items():
                     name, datum = item
+                    controller = self.update_list[name]
                     if name == 'V-SET' or name == 'I-SET' or name == 'B-LED':
+                        if controller.changed:
+                            controller.changed = False
+                            continue
+                        elif controller.slider.value == datum:
+                            continue
                         if name == 'B-LED':
-                            value = '{:d}'.format(datum * 10 ** (-1 * self.device.precision[name]))
-                            self.update_list[name].text = value
+                            value = int(datum * 10 ** (-1 * self.device.precision[name]))
+                            controller.slider.value = value
                         else:
                             f = '{:.' + str(self.device.precision[name]) + 'f}'
-                            value = f.format(datum * 10 ** (-1 * self.device.precision[name]))
-                            self.update_list[name].text = value
+                            value = float(f.format(datum * 10 ** (-1 * self.device.precision[name])))
+                            controller.slider.value = value
                     elif name == 'LOCK':
-                        self.lock_toggle(datum)
+                        if controller.changed:
+                            controller.changed = False
+                            continue
+                        if self.lock.value != datum:
+                            self.lock_toggle()
                     elif name == 'ON/OFF':
-                        self.enable_toggle(datum)
-                    elif name == 'POWER':
-                        pass
+                        if controller.changed:
+                            controller.changed = False
+                            continue
+                        if self.enable.value != datum:
+                            self.enable_toggle()
+                    elif name == 'CV/CC':
+                        if self.cvcc.value == datum:
+                            continue
+                        if datum == 0:
+                            self.cvcc.text = 'CV'
+                        elif datum == 1:
+                            self.cvcc.text = 'CC'
+                    elif name == 'PROTECT':
+                        if self.protect.value == datum:
+                            continue
+                        if datum == 0:
+                            self.protect.text = 'OK'
+                            self.protect.color = (0, 1, 0, 1)
+                            self.protect.value = 0
+                        elif datum == 1:
+                            self.protect.text = 'OVP'
+                            self.protect.color = (1, 0, 0, 1)
+                            self.protect.value = 1
+                        elif datum == 2:
+                            self.protect.text = 'OCP'
+                            self.protect.color = (1, 0, 0, 1)
+                            self.protect.value = 2
+                        elif datum == 3:
+                            self.protect.text = 'OPP'
+                            self.protect.color = (1, 0, 0, 1)
+                            self.protect.value = 3
                     else:
                         f = '{:.' + str(self.device.precision[name]) + 'f}'
-                        self.update_list[name].text = f.format(datum * 10 ** (-1 * self.device.precision[name]))
+                        controller.text = f.format(datum * 10 ** (-1 * self.device.precision[name]))
+            else:
+                self.address.changed = True
+                self.controllers.disabled = True
+                self.address.status.source = os.path.join(root, 'x.png')
 
 
 

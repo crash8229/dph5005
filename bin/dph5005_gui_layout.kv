@@ -32,7 +32,7 @@
     multiline: False
     input_filter: 'float'
 
-<Slider>:
+<MySlider@Slider>:
     size_hint: None, None
     size: 300, 30
     step: 1
@@ -204,7 +204,8 @@
                                     value: 0.0
                                     status: v_set_status
                                     slider: v_set_slider
-                                    on_text_validate: main.validate('V-SET', 'text', v_set_slider, self)
+                                    changed: False
+                                    on_text_validate: main.validate_text('V-SET', v_set_slider, self)
                                     on_text: main.warning_control(self)
                             AnchorLayout:
                                 anchor_x: 'left'
@@ -217,14 +218,15 @@
                         AnchorLayout:
                             anchor_x: 'center'
                             anchor_y: 'top'
-                            Slider:
+                            MySlider:
                                 min: 0
                                 max: 50
                                 step: 0.01
                                 id: v_set_slider
                                 do_not_update: False
                                 changed: False
-                                on_value: main.validate('V-SET', 'slider', self, v_set)
+                                on_value: main.validate_slider('V-SET', self, v_set)
+                                on_touch_up: main.slider_send(self)
 #                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('V-SET', 'slider', self, v_set)
 #                                on_touch_up: main.slider_send_command('V-SET', self.value)
 
@@ -251,7 +253,8 @@
                                     value: 0.0
                                     status: i_set_status
                                     slider: i_set_slider
-                                    on_text_validate: main.validate('I-SET', 'text', i_set_slider, self)
+                                    changed: False
+                                    on_text_validate: main.validate_text('I-SET', i_set_slider, self)
                                     on_text: main.warning_control(self)
 
                             AnchorLayout:
@@ -265,14 +268,14 @@
                         AnchorLayout:
                             anchor_x: 'center'
                             anchor_y: 'top'
-                            Slider:
+                            MySlider:
                                 min: 0
                                 max: 5
                                 step: 0.001
                                 id: i_set_slider
                                 do_not_update: False
-                                changed: False
-                                on_value: main.validate('I-SET', 'slider', self, i_set)
+                                on_value: main.validate_slider('I-SET', self, i_set)
+                                on_touch_up: main.slider_send(self)
 #                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('I-SET', 'slider', self, i_set)
 #                                on_touch_up: main.slider_send_command('I-SET', self.value)
 
@@ -301,8 +304,9 @@
                                     value: 0
                                     status: b_led_status
                                     slider: b_led_slider
+                                    changed: False
                                     input_filter: 'int'
-                                    on_text_validate: main.validate('B-LED', 'text', b_led_slider, self)
+                                    on_text_validate: main.validate_text('B-LED', b_led_slider, self)
                                     on_text: main.warning_control(self)
 
                             AnchorLayout:
@@ -316,13 +320,14 @@
                         AnchorLayout:
                             anchor_x: 'center'
                             anchor_y: 'top'
-                            Slider:
+                            MySlider:
                                 min: 0
                                 max: 5
                                 id: b_led_slider
                                 do_not_update: False
                                 changed: False
-                                on_value: main.validate('B-LED', 'slider', self, b_led_set)
+                                on_value: main.validate_slider('B-LED', self, b_led_set)
+                                on_touch_up: main.slider_send(self)
 #                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('B-LED', 'slider', self, b_led_set)
 #                                on_touch_up: main.slider_send_command('B-LED', self.value)
 
@@ -340,6 +345,8 @@
                                 font_size: 20
                                 size: self.size[0], 50
                                 background_color: 1, 0, 0, 1
+                                changed: False
+                                value: 0
                                 on_release: main.enable_toggle()
 
                         AnchorLayout:
@@ -350,6 +357,8 @@
                                 size: self.size[0], 50
                                 background_color: 1, 0, 0, 1
                                 status: lock_status
+                                value: 0
+                                changed: False
                                 on_release: main.lock_toggle()
                             RelativeLayout:
                                 Image:
@@ -438,7 +447,7 @@
                         anchor_x: 'right'
                         anchor_y: 'center'
                         IndicatorLabel:
-                            text: 'CC/CV:'
+                            text: 'CV/CC:'
                             size: 60, self.size[1]
 
                     AnchorLayout:
@@ -466,6 +475,7 @@
                             id: protect
                             text: 'OK'
                             font_size: 30
+                            value: 0
                             color: 0, 1, 0, 1
                             size: 60, self.size[1]
 

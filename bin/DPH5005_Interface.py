@@ -56,7 +56,7 @@ class DPH5005:
                           'I-SET': 3,
                           'V-OUT': 2,
                           'I-OUT': 3,
-                          'POWER': (2, 1),
+                          'POWER': 2,
                           'V-IN': 2,
                           'LOCK': 0,
                           'PROTECT': 0,
@@ -203,5 +203,6 @@ class DPH5005:
 
 if __name__ == "__main__":
     dph = DPH5005()
-    dph.connect_port('COM2')
-    print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))
+    dph.connect_port('COM5')
+    # print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))
+    print(dph.send_command(1, 'read', ('V-SET', 11)))
