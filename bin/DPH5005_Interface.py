@@ -101,21 +101,29 @@ class DPH5005:
             return self.port.read(byte_length)
         return b'\x00'
 
-    def send_command(self, address=0, mode='', registers=('', 0), data=(0, 0)):
+    # This sends a message to the device.
+    # Arguments:
+    # address = device address number set on the device
+    # mode = the function to be performed, look at self.mode for accepted functions
+    # registers =
+    def send_command(self, address, mode, registers, data=None):
         # Assemble the command and its expected response
         command = self.byte_packer.pack(address)
         command += self.mode[mode]
         expected_response = command
-        command += self.registers[registers[0]]
+        if isinstance(registers, tuple) or isinstance(registers, list):
+            command += self.registers[registers[0]]
+        else:
+            command += self.registers[registers]
         if mode == 'read':
             command += self.data_packer.pack(registers[1])
             expected_response += self.byte_packer.pack(registers[1] * 2)
             for i in range(0, registers[1]):
                 expected_response += b'\x00\x00'
         elif mode == 'single_write':
-            command += self.data_packer.pack(data[0])
-            expected_response += self.registers[registers[0]]
-            expected_response += self.data_packer.pack(data[0])
+            command += self.data_packer.pack(data)
+            expected_response += self.registers[registers]
+            expected_response += self.data_packer.pack(data)
         elif mode == 'multiple_write':
             command += self.data_packer.pack(registers[1])
             command += self.byte_packer.pack(2 * registers[1])

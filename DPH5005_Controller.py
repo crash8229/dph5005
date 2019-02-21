@@ -14,10 +14,12 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.lang.builder import Builder
-from kivy.uix.slider import Slider
+# from kivy.uix.slider import Slider
 import os
 from bin.serial_port_scanner import serial_ports
 from bin.DPH5005_Interface import DPH5005
+import queue
+import threading
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
 buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
@@ -27,12 +29,14 @@ def on_close():
     App.get_running_app().stop()
 
 
+# TODO: I think I need to have the send_command be on a separate thread overall to fix the lag.
 # TODO: It doesn't detect if the device has shutoff, due to serial port being powered by usb.
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 0.01)
+        Clock.schedule_interval(self.update, 0.1)
+
 
         self.device = DPH5005()
 
@@ -55,18 +59,10 @@ class MainScreen(Screen):
                             'ON/OFF': self.enable,
                             'B-LED': self.b_led_set}
 
-        # self.controller_names = ['V-SET',
-        #                          'I-SET',
-        #                          'LOCK',
-        #                          'ON/OFF',
-        #                          'B-LED']
-
         self.ports = list()
-        self.address.changed = True
-
-        # self.v_set_value = 0.0
-        # self.i_set_value = 0.0
-        # self.b_led_set_value = 0
+        self.read_timer = 0
+        # self.address.changed = True
+        # self.data = queue.Queue(1)
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
@@ -94,7 +90,7 @@ class MainScreen(Screen):
     def lock_toggle(self):
         # if state == 1 or (self.lock.value == 0 and state == 2):
         if self.lock.value == 0:
-            self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (1, 0))
+            self.device.send_command(self.address.value, 'single_write', 'LOCK', 1)
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
             # self.lock.status.status = 'locked'
@@ -102,7 +98,7 @@ class MainScreen(Screen):
             self.lock.changed = True
         # elif state == 0 or (self.lock.value == 1 and state == 2):
         elif self.lock.value == 1:
-            self.device.send_command(self.address.value, 'single_write', ('LOCK', 1), (0, 0))
+            self.device.send_command(self.address.value, 'single_write', 'LOCK', 0)
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
             # self.lock.status.status = 'unlocked'
@@ -112,14 +108,14 @@ class MainScreen(Screen):
     def enable_toggle(self):
         # if state == 1 or (self.enable.text == 'OFF' and state == 2):
         if self.enable.value == 0:
-            self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (1, 0))
+            self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 1)
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
             self.enable.value = 1
             self.enable.changed = True
         # elif state == 0 or (self.enable.text == 'ON' and state == 2):
         elif self.enable.value == 1:
-            self.device.send_command(self.address.value, 'single_write', ('ON/OFF', 1), (0, 0))
+            self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 0)
             self.enable.text = 'OFF'
             self.enable.background_color = (1, 0, 0, 1)
             self.enable.value = 0
@@ -224,6 +220,7 @@ class MainScreen(Screen):
         self.serial_port_check()
         self.address_check()
         self.slider_check()
+        self.read_timer += dt
         self.read_device()
 
     def serial_port_check(self):
@@ -267,16 +264,19 @@ class MainScreen(Screen):
                 self.v_set.slider.changed = False
                 self.i_set.slider.changed = False
             if self.b_led_set.slider.changed:
-                data = (int(self.b_led_set.slider.value * 10 ** self.device.precision['B-LED']), 0)
-                self.device.send_command(self.address.value, 'single_write', ('B-LED', 1), data)
+                data = int(self.b_led_set.slider.value * 10 ** self.device.precision['B-LED'])
+                self.device.send_command(self.address.value, 'single_write', 'B-LED', data)
                 self.b_led_set.slider.changed = False
 
+    # TODO: Make this it own thread, so not to slow down the GUI when it runs.
     def read_device(self):
+        if self.read_timer - 1 > 0:
+            self.read_timer = 0
         if not self.controllers.disabled and self.device.is_port_alive():
             # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
             check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
             if check:
-                # TODO: If value is not the same, don't bother writing it to the display.
+                # TODO: If value is not the same, don't bother writing it to the display. Need to make it for each case.
                 data = dict(zip(data['registers'], data['data']))
                 for item in data.items():
                     name, datum = item
@@ -309,6 +309,7 @@ class MainScreen(Screen):
                     elif name == 'CV/CC':
                         if self.cvcc.value == datum:
                             continue
+                        self.cvcc.value = datum
                         if datum == 0:
                             self.cvcc.text = 'CV'
                         elif datum == 1:
