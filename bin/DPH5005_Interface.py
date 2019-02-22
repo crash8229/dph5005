@@ -30,6 +30,7 @@ class DPH5005:
                           'B-LED': b'\x00\x0A',
                           'MODEL': b'\x00\x0B',
                           'VERSION': b'\x00\x0C'}
+
         self.register_order = ['V-SET',
                                'I-SET',
                                'V-OUT',
