@@ -106,7 +106,11 @@ class DPH5005:
     # Arguments:
     # address = device address number set on the device
     # mode = the function to be performed, look at self.mode for accepted functions
-    # registers =
+    # registers = a tuple of the starting register and how many registers to interact with for read and multiple write
+    #             for single write, it is just the register to write to.
+    # data = read does not have any extra data needed
+    #        single write just needs the value to write in the register
+    #        multiple write needs a tuple of the data to be written to each register
     def send_command(self, address, mode, registers, data=None):
         # Assemble the command and its expected response
         command = self.byte_packer.pack(address)

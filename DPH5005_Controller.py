@@ -17,7 +17,6 @@ from kivy.lang.builder import Builder
 import os
 from bin.serial_port_scanner import serial_ports
 from bin.DPH5005_Interface import DPH5005
-import queue
 import threading
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
@@ -58,7 +57,11 @@ class MainScreen(Screen):
 
         self.ports = list()
         self.read_timer = 0
-        # self.data = queue.Queue(1)
+
+        # [model_read, multiple_write, single_write, main_read]
+        # A simple queue that will be iterated though with the indexes being specific to what goes there
+        self.queue = list()
+        self.queue_lock = False
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
@@ -147,8 +150,6 @@ class MainScreen(Screen):
             slider.value = value
         text.changed = True
         slider.changed = True
-        # value = int(value * 10 ** self.device.precision[name])
-        # self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
         text.status.source = os.path.join(root, 'blank.png')
 
     def validate_slider(self, name, slider, text):
@@ -162,10 +163,6 @@ class MainScreen(Screen):
             text.text = str(value)
         text.changed = True
         text.status.source = os.path.join(root, 'blank.png')
-
-    # def slider_send_command(self, name, value):
-    #     value = int(value * 10 ** self.device.precision[name])
-    #     self.device.send_command(self.address.value, 'single_write', (name, 1), (value, 0))
 
     def limit_check(self, name, value):
         low, high = self.device.limits[name]
@@ -183,7 +180,6 @@ class MainScreen(Screen):
 
     def serial_disconnect(self):
         self.device.disconnect_port()
-        # self.serial_port_update()
         self.serial_port_button.text = 'Select Port'
         self.serial_port_status.source = os.path.join(root, 'blank.png')
         self.address.changed = True
@@ -269,8 +265,9 @@ class MainScreen(Screen):
                 self.b_led_set.slider.changed = False
 
     def read_device(self):
-        if self.read_timer - 1 > 0:
-            self.read_timer = 0
+        if self.read_timer <= 1:
+            return
+        self.read_timer = 0
         if not self.controllers.disabled and self.device.is_port_alive():
             # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
             check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
