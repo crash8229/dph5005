@@ -35,7 +35,7 @@ class MainScreen(Screen):
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 0.1)
+        Clock.schedule_interval(self.update, 0.25)
 
 
         self.device = DPH5005()
