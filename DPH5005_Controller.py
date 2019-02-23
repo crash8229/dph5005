@@ -87,32 +87,26 @@ class MainScreen(Screen):
         return ports
 
     def lock_toggle(self):
-        # if state == 1 or (self.lock.value == 0 and state == 2):
         if self.lock.value == 0:
             self.device.send_command(self.address.value, 'single_write', 'LOCK', 1)
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
-            # self.lock.status.status = 'locked'
             self.lock.value = 1
             self.lock.changed = True
-        # elif state == 0 or (self.lock.value == 1 and state == 2):
         elif self.lock.value == 1:
             self.device.send_command(self.address.value, 'single_write', 'LOCK', 0)
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
-            # self.lock.status.status = 'unlocked'
             self.lock.value = 0
             self.lock.changed = True
 
     def enable_toggle(self):
-        # if state == 1 or (self.enable.text == 'OFF' and state == 2):
         if self.enable.value == 0:
             self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 1)
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
             self.enable.value = 1
             self.enable.changed = True
-        # elif state == 0 or (self.enable.text == 'ON' and state == 2):
         elif self.enable.value == 1:
             self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 0)
             self.enable.text = 'OFF'
