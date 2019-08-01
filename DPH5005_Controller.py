@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+# OP_CODE
+# 0 - Write ON/OFF
+# 1 - Write V-SET
+# 2 - Write LOCK
+# 3 - Write B-LED
+# 4 - Read
+
 from kivy import require
 
 require('1.10.1')
@@ -18,6 +25,8 @@ import os
 from bin.serial_port_scanner import serial_ports
 from bin.DPH5005_Interface import DPH5005
 import threading
+import queue
+from bin.command_handler import Command_Handler
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
 buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
@@ -58,10 +67,14 @@ class MainScreen(Screen):
         self.ports = list()
         self.read_timer = 0
 
-        # [model_read, multiple_write, single_write, main_read]
+        command_queue = queue.PriorityQueue
+        data_queue = queue.Queue(1)
+        commander_thread = threading.Thread(target=Command_Handler, args=(command_queue, data_queue, self.device), daemon=True)
+        commander_thread.start()
         # A simple queue that will be iterated though with the indexes being specific to what goes there
-        self.queue = list()
-        self.queue_lock = False
+        # self.command_queue = list()
+        # self.data_queue = list()
+        # self.queue_lock = False
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
