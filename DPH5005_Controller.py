@@ -37,7 +37,6 @@ def on_close():
     App.get_running_app().stop()
 
 
-# TODO: I think I need to have the send_command be on a separate thread overall to fix the lag.
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
@@ -242,7 +241,6 @@ class MainScreen(Screen):
         if self.address.changed:
             if self.device.is_port_alive() and self.address.value is not None:
                 self.command_queue.put(item=(0, int(time.time()), (self.address.value, 'read', ('MODEL', 1))))
-                # TODO: Check if this removes new packet
                 if self.data_queue.full():
                     self.data_queue.get_nowait()
                 while self.data_queue.empty():
@@ -275,6 +273,7 @@ class MainScreen(Screen):
                 self.command_queue.put(item=(4, int(time.time()), (self.address.value, 'single_write', 'B-LED', data)))
                 self.b_led_set.slider.changed = False
 
+    # TODO: Check if it actually updates all values with current values from device.
     def read_device(self):
         if self.read_timer <= 1:
             return
