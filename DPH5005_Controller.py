@@ -27,6 +27,7 @@ from bin.DPH5005_Interface import DPH5005
 import threading
 import queue
 from bin.command_handler import Command_Handler
+import time
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
 buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
@@ -66,15 +67,12 @@ class MainScreen(Screen):
 
         self.ports = list()
         self.read_timer = 0
+        self.last_reading = dict()
 
-        command_queue = queue.PriorityQueue
-        data_queue = queue.Queue(1)
-        commander_thread = threading.Thread(target=Command_Handler, args=(command_queue, data_queue, self.device), daemon=True)
-        commander_thread.start()
-        # A simple queue that will be iterated though with the indexes being specific to what goes there
-        # self.command_queue = list()
-        # self.data_queue = list()
-        # self.queue_lock = False
+        self.command_queue = queue.PriorityQueue()
+        self.data_queue = queue.Queue(1)
+        self.commander_thread = threading.Thread(target=Command_Handler, args=(self.command_queue, self.data_queue, self.device), daemon=True)
+        self.commander_thread.start()
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
@@ -101,13 +99,13 @@ class MainScreen(Screen):
 
     def lock_toggle(self):
         if self.lock.value == 0:
-            self.device.send_command(self.address.value, 'single_write', 'LOCK', 1)
+            self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 1)))
             self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
             self.lock.value = 1
             self.lock.changed = True
         elif self.lock.value == 1:
-            self.device.send_command(self.address.value, 'single_write', 'LOCK', 0)
+            self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 0)))
             self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
             self.lock.value = 0
@@ -115,13 +113,13 @@ class MainScreen(Screen):
 
     def enable_toggle(self):
         if self.enable.value == 0:
-            self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 1)
+            self.command_queue.put(item=(1, int(time.time()), (self.address.value, 'single_write', 'ON/OFF', 1)))
             self.enable.text = 'ON'
             self.enable.background_color = (0, 1, 0, 1)
             self.enable.value = 1
             self.enable.changed = True
         elif self.enable.value == 1:
-            self.device.send_command(self.address.value, 'single_write', 'ON/OFF', 0)
+            self.command_queue.put(item=(1, int(time.time()), (self.address.value, 'single_write', 'ON/OFF', 0)))
             self.enable.text = 'OFF'
             self.enable.background_color = (1, 0, 0, 1)
             self.enable.value = 0
@@ -243,7 +241,13 @@ class MainScreen(Screen):
     def address_check(self):
         if self.address.changed:
             if self.device.is_port_alive() and self.address.value is not None:
-                data = self.device.send_command(self.address.value, 'read', ('MODEL', 1))
+                self.command_queue.put(item=(0, int(time.time()), (self.address.value, 'read', ('MODEL', 1))))
+                # TODO: Check if this removes new packet
+                if self.data_queue.full():
+                    self.data_queue.get_nowait()
+                while self.data_queue.empty():
+                    pass
+                data = self.data_queue.get()
                 if data[0] and data[1]['data'][0] == 5205:
                     self.address.status.source = os.path.join(root, 'check.png')
                     self.address.changed = False
@@ -263,12 +267,12 @@ class MainScreen(Screen):
                 data = list()
                 data.append(int(self.v_set.slider.value * 10 ** self.device.precision['V-SET']))
                 data.append(int(self.i_set.slider.value * 10 ** self.device.precision['I-SET']))
-                self.device.send_command(self.address.value, 'multiple_write', ('V-SET', 2), data)
+                self.command_queue.put(item=(2, int(time.time()), (self.address.value, 'multiple_write', ('V-SET', 2), data)))
                 self.v_set.slider.changed = False
                 self.i_set.slider.changed = False
             if self.b_led_set.slider.changed:
                 data = int(self.b_led_set.slider.value * 10 ** self.device.precision['B-LED'])
-                self.device.send_command(self.address.value, 'single_write', 'B-LED', data)
+                self.command_queue.put(item=(4, int(time.time()), (self.address.value, 'single_write', 'B-LED', data)))
                 self.b_led_set.slider.changed = False
 
     def read_device(self):
@@ -277,7 +281,10 @@ class MainScreen(Screen):
         self.read_timer = 0
         if not self.controllers.disabled and self.device.is_port_alive():
             # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
-            check, data = self.device.send_command(self.address.value, 'read', ('V-SET', 11))
+            self.command_queue.put(item=(5, int(time.time()), (self.address.value, 'read', ('V-SET', 1))))
+            if self.data_queue.empty():
+                return
+            check, data = self.data_queue.get_nowait()
             if check:
                 data = dict(zip(data['registers'], data['data']))
                 for item in data.items():

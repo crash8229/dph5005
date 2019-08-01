@@ -148,7 +148,7 @@ class DPH5005:
         elif response[-2:] == self.get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
-            return False, dict()
+            return False, {'mode': mode}
 
     def __parse_response(self, command, response):
         parsed_data = dict()

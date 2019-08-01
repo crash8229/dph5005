@@ -16,8 +16,12 @@ class Command_Handler:
     def main_loop(self):
         while True:
             if self.device.is_port_alive():
-                flag, data = self.device.send_command(*self.command_queue.get())
-                if flag and data['mode'] == 'read':
+                cmd = self.command_queue.get()
+                if cmd[0] == 0:
+                    while not self.command_queue.empty():
+                        self.command_queue.get_nowait()
+                data = self.device.send_command(*cmd[2])
+                if data[1]['mode'] == 'read':
                     if self.data_queue.full():
                         self.data_queue.get_nowait()
                     self.data_queue.put(data)
@@ -25,4 +29,4 @@ class Command_Handler:
                     pass
             else:
                 while not self.command_queue.empty():
-                    self.command_queue.get()
+                    self.command_queue.get_nowait()
