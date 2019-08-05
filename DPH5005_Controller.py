@@ -70,7 +70,8 @@ class MainScreen(Screen):
 
         self.command_queue = queue.PriorityQueue()
         self.data_queue = queue.Queue(1)
-        self.commander_thread = threading.Thread(target=Command_Handler, args=(self.command_queue, self.data_queue, self.device), daemon=True)
+        self.commander_thread = threading.Thread(
+            target=Command_Handler, args=(self.command_queue, self.data_queue, self.device), daemon=True)
         self.commander_thread.start()
 
         self.serial_port_menu = DropDown()
@@ -265,7 +266,8 @@ class MainScreen(Screen):
                 data = list()
                 data.append(int(self.v_set.slider.value * 10 ** self.device.precision['V-SET']))
                 data.append(int(self.i_set.slider.value * 10 ** self.device.precision['I-SET']))
-                self.command_queue.put(item=(2, int(time.time()), (self.address.value, 'multiple_write', ('V-SET', 2), data)))
+                self.command_queue.put(
+                    item=(2, int(time.time()), (self.address.value, 'multiple_write', ('V-SET', 2), data)))
                 self.v_set.slider.changed = False
                 self.i_set.slider.changed = False
             if self.b_led_set.slider.changed:

@@ -75,9 +75,11 @@ class App:
         for i in range(0, len(self.dph.register_order)):
             self.register_entries.append(tk.StringVar(name=self.dph.register_order[i]))
             self.register_entries[i].set(self.registers[i])
-            self.register_entries[i].trace('w', lambda *args, var=self.register_entries[i], index=i: self.register_validate(var, index))
+            self.register_entries[i].trace(
+                'w', lambda *args, var=self.register_entries[i], index=i: self.register_validate(var, index))
             tk.Label(root, text='{0}: '.format(self.dph.register_order[i])).grid(row=r, column=0, sticky=tk.W)
-            tk.Entry(root, state=tk.NORMAL, justify=tk.CENTER, textvariable=self.register_entries[i]).grid(row=r, column=1, sticky=tk.W)
+            tk.Entry(root, state=tk.NORMAL, justify=tk.CENTER, textvariable=self.register_entries[i]).grid(
+                row=r, column=1, sticky=tk.W)
             r += 1
 
         self.thread = threading.Thread(target=self.emulator, name='emulator', daemon=True)
