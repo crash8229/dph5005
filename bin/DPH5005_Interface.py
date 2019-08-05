@@ -3,6 +3,7 @@ import struct
 import serial
 
 
+# TODO: Add CRC check and reject if bad.
 class DPH5005:
     def __init__(self):
         self.port = None

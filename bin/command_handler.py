@@ -1,5 +1,5 @@
-import queue
-from bin.DPH5005_Interface import DPH5005
+# import queue
+# from bin.DPH5005_Interface import DPH5005
 
 class Command_Handler:
     def __init__(self, command_queue, data_queue, device):
@@ -25,8 +25,6 @@ class Command_Handler:
                     if self.data_queue.full():
                         self.data_queue.get_nowait()
                     self.data_queue.put(data)
-                else:
-                    pass
             else:
                 while not self.command_queue.empty():
                     self.command_queue.get_nowait()

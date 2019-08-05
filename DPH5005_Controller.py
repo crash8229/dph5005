@@ -273,14 +273,13 @@ class MainScreen(Screen):
                 self.command_queue.put(item=(4, int(time.time()), (self.address.value, 'single_write', 'B-LED', data)))
                 self.b_led_set.slider.changed = False
 
-    # TODO: Check if it actually updates all values with current values from device.
     def read_device(self):
-        if self.read_timer <= 1:
+        if self.read_timer <= 0.5:  # Refresh rate
             return
         self.read_timer = 0
         if not self.controllers.disabled and self.device.is_port_alive():
             # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
-            self.command_queue.put(item=(5, int(time.time()), (self.address.value, 'read', ('V-SET', 1))))
+            self.command_queue.put(item=(5, int(time.time()), (self.address.value, 'read', ('V-SET', 11))))
             if self.data_queue.empty():
                 return
             check, data = self.data_queue.get_nowait()
