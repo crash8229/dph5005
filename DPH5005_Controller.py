@@ -38,6 +38,7 @@ def on_close():
     App.get_running_app().stop()
 
 
+# TODO: Change the on_touch_up event to on_value event and wait until 0.5s pass of no change before sending command
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
