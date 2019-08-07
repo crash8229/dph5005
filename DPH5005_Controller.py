@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 # OP_CODE
-# 0 - Write ON/OFF
-# 1 - Write V-SET
-# 2 - Write LOCK
-# 3 - Write B-LED
-# 4 - Read
+# 0 - read model
+# 1 - ON/OFF
+# 2 - V-SET
+# 3 - LOCK
+# 4 - B-LED
+# 5 - read all
 
 from kivy import require
 
