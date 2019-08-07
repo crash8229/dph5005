@@ -144,9 +144,7 @@ class DPH5005:
         response = self.__send(command, len(expected_response))
 
         # Checks to see if the response is valid and parses it if it is.
-        if mode == 'read' and len(response) == len(expected_response):
-            return True, self.__parse_response(command, response)
-        elif response[-2:] == self.get_crc(response[:-2]):
+        if response[-2:] == self.get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
             return False, {'mode': mode}
