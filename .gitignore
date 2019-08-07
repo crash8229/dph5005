@@ -3,3 +3,5 @@ venv
 run.bat
 *__pycache__
 test_scripts
+/.floo
+/.flooignore
