@@ -1,21 +1,38 @@
-import libscrc
 import struct
 import serial
+
+
+function = {'read': b'\x03',
+            'single_write': b'\x06',
+            'multiple_write': b'\x10'}
+
+byte_packer = struct.Struct('>B')
+data_packer = struct.Struct('>H')
+crc_packer = struct.Struct('<H')
+
+
+def get_crc(message):
+    msg = bytearray(message)
+    crc = 0xffff
+    for b in msg:
+        crc ^= b
+        for i in range(8):
+            if crc & 0x0001 == 0x0001:
+                crc >>= 1
+                crc ^= 0xA001
+            else:
+                crc >>= 1
+    return crc_packer.pack(crc)
 
 
 class DPH5005:
     def __init__(self):
         self.port = None
-        # self.connect_port(port)
-        self.byte_packer = struct.Struct('>B')
-        self.data_packer = struct.Struct('>H')
-        self.crc_packer = struct.Struct('<H')
+        # self.byte_packer = struct.Struct('>B')
+        # self.data_packer = struct.Struct('>H')
+        # self.crc_packer = struct.Struct('<H')
 
         # Model # of DPH5005 is b'\x14\x55' in hex or 5205 in decimal
-
-        self.mode = {'read': b'\x03',
-                     'single_write': b'\x06',
-                     'multiple_write': b'\x10'}
 
         self.registers = {'V-SET': b'\x00\x00',
                           'I-SET': b'\x00\x01',
@@ -92,10 +109,6 @@ class DPH5005:
             self.port.close()
             self.port = None
 
-    def get_crc(self, message):
-        checksum = libscrc.modbus(message)
-        return self.crc_packer.pack(checksum)
-
     def __send(self, command, byte_length):
         if self.is_port_alive():
             self.port.write(command)
@@ -113,37 +126,37 @@ class DPH5005:
     #        multiple write needs a tuple of the data to be written to each register
     def send_command(self, address, mode, registers, data=None):
         # Assemble the command and its expected response
-        command = self.byte_packer.pack(address)
-        command += self.mode[mode]
+        command = byte_packer.pack(address)
+        command += function[mode]
         expected_response = command
         if isinstance(registers, tuple) or isinstance(registers, list):
             command += self.registers[registers[0]]
         else:
             command += self.registers[registers]
         if mode == 'read':
-            command += self.data_packer.pack(registers[1])
-            expected_response += self.byte_packer.pack(registers[1] * 2)
+            command += data_packer.pack(registers[1])
+            expected_response += byte_packer.pack(registers[1] * 2)
             for i in range(0, registers[1]):
                 expected_response += b'\x00\x00'
         elif mode == 'single_write':
-            command += self.data_packer.pack(data)
+            command += data_packer.pack(data)
             expected_response += self.registers[registers]
-            expected_response += self.data_packer.pack(data)
+            expected_response += data_packer.pack(data)
         elif mode == 'multiple_write':
-            command += self.data_packer.pack(registers[1])
-            command += self.byte_packer.pack(2 * registers[1])
+            command += data_packer.pack(registers[1])
+            command += byte_packer.pack(2 * registers[1])
             for i in range(0, registers[1]):
-                command += self.data_packer.pack(data[i])
+                command += data_packer.pack(data[i])
             expected_response += self.registers[registers[0]]
-            expected_response += self.data_packer.pack(registers[1])
-        command += self.get_crc(command)
-        expected_response += self.get_crc(expected_response)
+            expected_response += data_packer.pack(registers[1])
+        command += get_crc(command)
+        expected_response += get_crc(expected_response)
 
         # Send command and save any response
         response = self.__send(command, len(expected_response))
 
         # Checks to see if the response is valid and parses it if it is.
-        if response[-2:] == self.get_crc(response[:-2]):
+        if response[-2:] == get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
             return False, {'mode': mode}
@@ -153,12 +166,12 @@ class DPH5005:
 
         # Gets the address
         address = response[:1]
-        address = self.byte_packer.unpack(address)[0]
+        address = byte_packer.unpack(address)[0]
         parsed_data['address'] = address
 
         # Gets the mode
         mode = response[1:2]
-        for m in self.mode.items():
+        for m in function.items():
             if mode == m[1]:
                 mode = m[0]
                 break
@@ -175,17 +188,17 @@ class DPH5005:
                 if starting_register == item[1]:
                     starting_register = item[0]
                     break
-            number_of_registers = self.byte_packer.unpack(response[:1])[0] // 2
+            number_of_registers = byte_packer.unpack(response[:1])[0] // 2
             response = response[1:]
             starting_index = self.register_order.index(starting_register)
             parsed_data['registers'] = self.register_order[starting_index: starting_index + number_of_registers]
             parsed_data['data'] = list()
             for i in range(0, number_of_registers):
-                parsed_data['data'].append(self.data_packer.unpack(response[:2])[0])
+                parsed_data['data'].append(data_packer.unpack(response[:2])[0])
                 response = response[2:]
         elif mode == 'single_write':
             register = response[:2]
-            parsed_data['data'] = self.data_packer.unpack(response[2:])[0]
+            parsed_data['data'] = data_packer.unpack(response[2:])[0]
             for item in self.registers.items():
                 if register == item[1]:
                     register = item[0]
@@ -193,7 +206,7 @@ class DPH5005:
             parsed_data['registers'] = register
         elif mode == 'multiple_write':
             starting_register = response[:2]
-            number_of_registers = self.data_packer.unpack(response[2:])[0]
+            number_of_registers = data_packer.unpack(response[2:])[0]
             for item in self.registers.items():
                 if starting_register == item[1]:
                     starting_register = item[0]
@@ -204,7 +217,7 @@ class DPH5005:
             command = command[7:]
             parsed_data['data'] = list()
             for i in range(0, number_of_registers):
-                parsed_data['data'].append(self.data_packer.unpack(command[:2])[0])
+                parsed_data['data'].append(data_packer.unpack(command[:2])[0])
                 command = command[2:]
         else:
             # It should never reach this point as it check for a valid packet, but it does hurt to have it.
