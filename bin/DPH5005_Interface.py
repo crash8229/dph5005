@@ -28,9 +28,6 @@ def get_crc(message):
 class DPH5005:
     def __init__(self):
         self.port = None
-        # self.byte_packer = struct.Struct('>B')
-        # self.data_packer = struct.Struct('>H')
-        # self.crc_packer = struct.Struct('<H')
 
         # Model # of DPH5005 is b'\x14\x55' in hex or 5205 in decimal
 
