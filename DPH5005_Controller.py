@@ -39,6 +39,7 @@ def on_close():
 
 
 # TODO: Change the on_touch_up event to on_value event and wait until 0.5s pass of no change before sending command
+# TODO: Add method to flush data queue when write command is sent
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
