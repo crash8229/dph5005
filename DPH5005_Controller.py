@@ -38,8 +38,9 @@ def on_close():
     App.get_running_app().stop()
 
 
+# TODO: Maybe make it show the value again if the person is not focused and it has been a while
 # TODO: Change the on_touch_up event to on_value event and wait until 0.5s pass of no change before sending command
-# TODO: Add method to flush data queue when write command is sent
+# TODO: Make is such that only the written data register is ignored in the next read.
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
@@ -128,7 +129,6 @@ class MainScreen(Screen):
             self.enable.value = 0
             self.enable.changed = True
 
-    # TODO: Maybe make it show the value again if the person is not focused and it has been a while
     def warning_address(self):
         # if address.text != str(self.address.value):
         self.address.status.source = os.path.join(root, 'warning.png')

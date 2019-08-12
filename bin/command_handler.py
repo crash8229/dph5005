@@ -11,6 +11,7 @@ class Command_Handler:
 
     def main_loop(self):
         while True:
+            print(self.command_queue.qsize())
             if self.device.is_port_alive():
                 cmd = self.command_queue.get()
                 if self.data_queue.full():
