@@ -227,8 +227,6 @@
                                 changed: False
                                 on_value: main.validate_slider('V-SET', self, v_set)
                                 on_touch_up: main.slider_send(self)
-#                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('V-SET', 'slider', self, v_set)
-#                                on_touch_up: main.slider_send_command('V-SET', self.value)
 
                     # This creates the current controller
                     BoxLayout:
@@ -276,8 +274,6 @@
                                 do_not_update: False
                                 on_value: main.validate_slider('I-SET', self, i_set)
                                 on_touch_up: main.slider_send(self)
-#                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('I-SET', 'slider', self, i_set)
-#                                on_touch_up: main.slider_send_command('I-SET', self.value)
 
                     # This creates the backlight controller
                     BoxLayout:
@@ -328,8 +324,6 @@
                                 changed: False
                                 on_value: main.validate_slider('B-LED', self, b_led_set)
                                 on_touch_up: main.slider_send(self)
-#                                on_touch_up: if self.collide_point(*args[1].pos): main.validate('B-LED', 'slider', self, b_led_set)
-#                                on_touch_up: main.slider_send_command('B-LED', self.value)
 
                     # This creates the enable and key lock buttons
                     BoxLayout:
