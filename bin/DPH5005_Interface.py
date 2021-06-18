@@ -11,20 +11,6 @@ data_packer = struct.Struct('>H')
 crc_packer = struct.Struct('<H')
 
 
-def get_crc(message):
-    msg = bytearray(message)
-    crc = 0xffff
-    for b in msg:
-        crc ^= b
-        for i in range(8):
-            if crc & 0x0001 == 0x0001:
-                crc >>= 1
-                crc ^= 0xA001
-            else:
-                crc >>= 1
-    return crc_packer.pack(crc)
-
-
 class DPH5005:
     def __init__(self):
         self.port = None
@@ -80,6 +66,21 @@ class DPH5005:
                           'B-LED': 0,
                           'MODEL': 0,
                           'VERSION': 0}
+
+    # Generates the CRC for the modbus packet
+    @staticmethod
+    def get_crc(message):
+        msg = bytearray(message)
+        crc = 0xffff
+        for b in msg:
+            crc ^= b
+            for i in range(8):
+                if crc & 0x0001 == 0x0001:
+                    crc >>= 1
+                    crc ^= 0xA001
+                else:
+                    crc >>= 1
+        return crc_packer.pack(crc)
 
     # Handles connecting to a serial port. If it was connected to a previous port. it will disconnect from it first.
     def connect_port(self, port):
@@ -146,14 +147,14 @@ class DPH5005:
                 command += data_packer.pack(data[i])
             expected_response += self.registers[registers[0]]
             expected_response += data_packer.pack(registers[1])
-        command += get_crc(command)
-        expected_response += get_crc(expected_response)
+        command += self.get_crc(command)
+        expected_response += self.get_crc(expected_response)
 
         # Send command and save any response
         response = self.__send(command, len(expected_response))
 
         # Checks to see if the response is valid and parses it if it is.
-        if response[-2:] == get_crc(response[:-2]):
+        if response[-2:] == self.get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
             return False, {'mode': mode}
@@ -224,6 +225,6 @@ class DPH5005:
 
 if __name__ == "__main__":
     dph = DPH5005()
-    dph.connect_port('COM5')
+    dph.connect_port('/dev/tnt0')
     # print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))
     print(dph.send_command(1, 'read', ('V-SET', 11)))
