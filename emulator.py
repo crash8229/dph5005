@@ -36,7 +36,7 @@ class App:
         self.register_entries = list()
 
         self.data_queue = queue.LifoQueue(1)
-        self.lock = False
+        self.lock: threading.Lock = threading.Lock()
 
         root = tk.Tk()
         self.root = root
@@ -204,51 +204,46 @@ class App:
                 else:
                     print("Function: Unknown Function")
                 print("")
-                while self.lock:
-                    pass
                 if (
                     not (self.read_var.get() and mode == "Read")
                     and not (self.single_write_var.get() and mode == "Single Write")
                     and not (self.multiple_write_var.get() and mode == "Multiple Write")
                 ):
-                    self.lock = True
-                    if self.data_queue.full():
-                        self.data_queue.get()
-                    self.data_queue.put(
-                        [
-                            address,
-                            binascii.hexlify(command),
-                            mode,
-                            binascii.hexlify(response),
-                        ]
-                    )
-                    self.lock = False
+                    with self.lock:
+                        if self.data_queue.full():
+                            self.data_queue.get()
+                        self.data_queue.put(
+                            [
+                                address,
+                                binascii.hexlify(command),
+                                mode,
+                                binascii.hexlify(response),
+                            ]
+                        )
 
     def update(self):
         # print('updating ... is thread alive: {0}'.format(self.thread.is_alive()))
         # print(self.address_entry.get())
-        while self.lock:
-            pass
-        self.lock = True
-        if self.data_queue.full():
-            data = self.data_queue.get()
-            self.lock = False
-            if (
-                not (self.read_var.get() and data[2] == "Read")
-                and not (self.single_write_var.get() and data[2] == "Single Write")
-                and not (self.multiple_write_var.get() and data[2] == "Multiple Write")
-            ):
-                if self.address.get() != "":
-                    self.address.set(data[0])
-                self.entry_update(self.command_entry, data[1])
-                self.entry_update(self.function_entry, data[2])
-                self.entry_update(self.response_entry, data[3])
-            # else:
-            #     self.entry_update(self.address_entry, '')
-            #     self.entry_update(self.command_entry, '')
-            #     self.entry_update(self.function_entry, '')
-            #     self.entry_update(self.response_entry, '')
-        self.lock = False
+        with self.lock:
+            if self.data_queue.full():
+                data = self.data_queue.get()
+                if (
+                    not (self.read_var.get() and data[2] == "Read")
+                    and not (self.single_write_var.get() and data[2] == "Single Write")
+                    and not (
+                        self.multiple_write_var.get() and data[2] == "Multiple Write"
+                    )
+                ):
+                    if self.address.get() != "":
+                        self.address.set(data[0])
+                    self.entry_update(self.command_entry, data[1])
+                    self.entry_update(self.function_entry, data[2])
+                    self.entry_update(self.response_entry, data[3])
+                # else:
+                #     self.entry_update(self.address_entry, '')
+                #     self.entry_update(self.command_entry, '')
+                #     self.entry_update(self.function_entry, '')
+                #     self.entry_update(self.response_entry, '')
         self.register_entry_update()
         self.root.after(self.update_rate, self.update)
 
@@ -259,7 +254,8 @@ class App:
             ):
                 self.register_entries[i].set(self.registers[i])
 
-    def entry_update(self, entry, text):
+    @staticmethod
+    def entry_update(entry, text):
         if entry["state"] == tk.DISABLED:
             entry["state"] = tk.NORMAL
             entry.delete(0, tk.END)
