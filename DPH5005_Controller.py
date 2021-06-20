@@ -23,11 +23,11 @@ from kivy.clock import Clock
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.lang.builder import Builder
 import os
-from bin.serial_port_scanner import serial_ports
-from bin.DPH5005_Interface import DPH5005
+from dph5005.serial_port_scanner import serial_ports
+from dph5005.DPH5005_Interface import DPH5005
 import threading
 import queue
-from bin.command_handler import Command_Handler
+from dph5005.command_handler import Command_Handler
 import time
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')

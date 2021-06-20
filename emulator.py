@@ -7,7 +7,7 @@ import tkinter as tk
 
 import serial
 
-from bin.DPH5005_Interface import DPH5005
+from dph5005.DPH5005_Interface import DPH5005
 
 
 class App:
