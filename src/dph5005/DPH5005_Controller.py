@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # OP_CODE
 # 0 - read model
@@ -8,39 +8,18 @@
 # 4 - B-LED
 # 5 - read all
 
-from kivy import require
-
-require('1.10.1')
-from kivy.config import Config
-
-Config.set('graphics', 'resizable', False)
-Config.set('graphics', 'width', '800')
-Config.set('graphics', 'height', '480')
-from kivy.app import App
-from kivy.uix.dropdown import DropDown
-from kivy.uix.button import Button
-from kivy.clock import Clock
-from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.lang.builder import Builder
 import os
-from dph5005.serial_port_scanner import serial_ports
-from dph5005.DPH5005_Interface import DPH5005
-import threading
 import queue
-from dph5005.command_handler import Command_Handler
+import threading
 import time
 
-root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
-buildkv = Builder.load_file(os.path.join('bin', 'dph5005_gui_layout.kv'))
+from command_handler import Command_Handler
+from interface import DPH5005
+from serial_port_scanner import serial_ports
+
+root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '')
 
 
-def on_close():
-    App.get_running_app().stop()
-
-
-# TODO: Maybe make it show the value again if the person is not focused and it has been a while
-# TODO: Change the on_touch_up event to on_value event and wait until 0.5s pass of no change before sending command
-# TODO: Make is such that only the written data register is ignored in the next read.
 class MainScreen(Screen):
 
     def __init__(self, **kwargs):
@@ -48,13 +27,6 @@ class MainScreen(Screen):
         Clock.schedule_interval(self.update, 0.25)
 
         self.device = DPH5005()
-
-        self.serial_port_status.source = os.path.join(root, 'blank.png')
-        self.address.status.source = os.path.join(root, 'x.png')
-        self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
-        self.v_set.status.source = os.path.join(root, 'blank.png')
-        self.i_set.status.source = os.path.join(root, 'blank.png')
-        self.b_led_set.status.source = os.path.join(root, 'blank.png')
 
         self.update_list = {'V-SET': self.v_set,
                             'I-SET': self.i_set,
@@ -104,13 +76,11 @@ class MainScreen(Screen):
     def lock_toggle(self):
         if self.lock.value == 0:
             self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 1)))
-            self.lock.status.source = os.path.join(root, 'lock-locked.png')
             self.lock.background_color = (0, 1, 0, 1)
             self.lock.value = 1
             self.lock.changed = True
         elif self.lock.value == 1:
             self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 0)))
-            self.lock.status.source = os.path.join(root, 'lock-unlocked.png')
             self.lock.background_color = (1, 0, 0, 1)
             self.lock.value = 0
             self.lock.changed = True
@@ -129,13 +99,6 @@ class MainScreen(Screen):
             self.enable.value = 0
             self.enable.changed = True
 
-    def warning_address(self):
-        # if address.text != str(self.address.value):
-        self.address.status.source = os.path.join(root, 'warning.png')
-
-    def warning_control(self, textbox):
-        textbox.status.source = os.path.join(root, 'warning.png')
-
     def validate_address(self):
         if self.address.text == '':
             self.address.text = str(self.address.value)
@@ -143,7 +106,7 @@ class MainScreen(Screen):
         self.address.value = int(self.limit_check('ADDRESS', int(self.address.text)))
         self.address.text = str(self.address.value)
         self.address.changed = True
-        self.address.status.source = os.path.join(root, 'x.png')
+        self.address.status.source = os.path.join(root, 'images/x.png')
 
     def validate_text(self, name, slider, text):
         if text.text == '':
@@ -158,7 +121,7 @@ class MainScreen(Screen):
             slider.value = value
         text.changed = True
         slider.changed = True
-        text.status.source = os.path.join(root, 'blank.png')
+        text.status.source = os.path.join(root, 'images/blank.png')
 
     def validate_slider(self, name, slider, text):
         # if slider.value != float(text.text):
@@ -170,7 +133,7 @@ class MainScreen(Screen):
         else:
             text.text = str(value)
         text.changed = True
-        text.status.source = os.path.join(root, 'blank.png')
+        text.status.source = os.path.join(root, 'images/blank.png')
 
     def limit_check(self, name, value):
         low, high = self.device.limits[name]
@@ -189,7 +152,7 @@ class MainScreen(Screen):
     def serial_disconnect(self):
         self.device.disconnect_port()
         self.serial_port_button.text = 'Select Port'
-        self.serial_port_status.source = os.path.join(root, 'blank.png')
+        self.serial_port_status.source = os.path.join(root, 'images/blank.png')
         self.address.changed = True
 
     def serial_connect(self, dropdown, port):
@@ -198,9 +161,9 @@ class MainScreen(Screen):
             return
         self.serial_port_button.text = port
         if self.device.connect_port(port):
-            self.serial_port_status.source = os.path.join(root, 'check.png')
+            self.serial_port_status.source = os.path.join(root, 'images/check.png')
         else:
-            self.serial_port_status.source = os.path.join(root, 'x.png')
+            self.serial_port_status.source = os.path.join(root, 'images/x.png')
         self.address.changed = True
 
     def is_number(self, num):
@@ -229,14 +192,14 @@ class MainScreen(Screen):
             self.device.disconnect_port()
             self.serial_port_update()
             self.serial_port_button.text = 'Select Port'
-            self.serial_port_status.source = os.path.join(root, 'blank.png')
+            self.serial_port_status.source = os.path.join(root, 'images/blank.png')
             self.address.changed = True
             self.controllers.disabled = True
         if self.ports != self.get_ports():
             self.serial_port_update()
             if self.serial_port_button.text in self.ports:
                 self.serial_port_button.text = 'Select Port'
-                self.serial_port_status.source = os.path.join(root, 'blank.png')
+                self.serial_port_status.source = os.path.join(root, 'images/blank.png')
                 # self.serial_port_update()
                 self.address.changed = True
                 self.controllers.disabled = True
@@ -251,16 +214,16 @@ class MainScreen(Screen):
                     pass
                 data = self.data_queue.get()
                 if data[0] and data[1]['data'][0] == 5205:
-                    self.address.status.source = os.path.join(root, 'check.png')
+                    self.address.status.source = os.path.join(root, 'images/check.png')
                     self.address.changed = False
                     self.controllers.disabled = False
                 else:
-                    self.address.status.source = os.path.join(root, 'x.png')
+                    self.address.status.source = os.path.join(root, 'images/x.png')
                     self.address.changed = False
                     self.controllers.disabled = True
             else:
-                if self.address.status.source == os.path.join(root, 'check.png'):
-                    self.address.status.source = os.path.join(root, 'x.png')
+                if self.address.status.source == os.path.join(root, 'images/check.png'):
+                    self.address.status.source = os.path.join(root, 'images/x.png')
                     self.controllers.disabled = True
 
     def slider_check(self):
@@ -351,30 +314,7 @@ class MainScreen(Screen):
             else:
                 self.address.changed = True
                 self.controllers.disabled = True
-                self.address.status.source = os.path.join(root, 'x.png')
-
-
-class GraphScreen(Screen):
-
-    def __init__(self, **kwargs):
-        super(GraphScreen, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 0.5)
-
-    def update(self, dt):
-        pass
-
-    def on_close(self):
-        on_close()
-
-
-class DPH5005Controller(App):
-    def build(self):
-        main_screen = MainScreen(name='MainScreen')
-        graph_screen = GraphScreen(name='GraphScreen')
-        screen_manager = ScreenManager()
-        screen_manager.add_widget(main_screen)
-        screen_manager.add_widget(graph_screen)
-        return screen_manager
+                self.address.status.source = os.path.join(root, 'images/x.png')
 
 
 if __name__ == '__main__':
