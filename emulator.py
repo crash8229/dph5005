@@ -1,4 +1,5 @@
 import binascii
+import datetime
 import queue
 import struct
 import threading
@@ -66,23 +67,31 @@ class App:
         )
         self.address_entry.grid(row=1, column=1, sticky=tk.W)
 
-        tk.Label(root, text="Command Received: ").grid(row=2, column=0, sticky=tk.W)
+        tk.Label(root, text="Time Received: ").grid(row=2, column=0, sticky=tk.W)
+        self.time_entry = tk.Entry(root, state=tk.DISABLED, justify=tk.CENTER)
+        self.time_entry.configure(
+            disabledbackground=self.time_entry["background"],
+            disabledforeground=self.time_entry["foreground"],
+        )
+        self.time_entry.grid(row=2, column=1, sticky=tk.W)
+
+        tk.Label(root, text="Command Received: ").grid(row=3, column=0, sticky=tk.W)
         self.command_entry = tk.Entry(root, state=tk.DISABLED, justify=tk.CENTER)
         self.command_entry.configure(
             disabledbackground=self.command_entry["background"],
             disabledforeground=self.command_entry["foreground"],
         )
-        self.command_entry.grid(row=2, column=1, sticky="we")
+        self.command_entry.grid(row=3, column=1, sticky="we")
 
-        tk.Label(root, text="Function: ").grid(row=3, column=0, sticky=tk.W)
+        tk.Label(root, text="Function: ").grid(row=4, column=0, sticky=tk.W)
         self.function_entry = tk.Entry(root, state=tk.DISABLED, justify=tk.CENTER)
         self.function_entry.configure(
             disabledbackground=self.function_entry["background"],
             disabledforeground=self.function_entry["foreground"],
         )
-        self.function_entry.grid(row=3, column=1, sticky=tk.W)
+        self.function_entry.grid(row=4, column=1, sticky=tk.W)
 
-        tk.Label(root, text="Response: ").grid(row=4, column=0, sticky=tk.W)
+        tk.Label(root, text="Response: ").grid(row=5, column=0, sticky=tk.W)
         self.response_entry = tk.Entry(
             root, width=60, state=tk.DISABLED, justify=tk.CENTER
         )
@@ -90,9 +99,9 @@ class App:
             disabledbackground=self.response_entry["background"],
             disabledforeground=self.response_entry["foreground"],
         )
-        self.response_entry.grid(row=4, column=1, sticky="we")
+        self.response_entry.grid(row=5, column=1, sticky="we")
 
-        r = 5
+        r = 6
         for i in range(0, len(self.dph.register_order)):
             self.register_entries.append(tk.StringVar(name=self.dph.register_order[i]))
             self.register_entries[i].set(self.registers[i])
@@ -157,6 +166,7 @@ class App:
             if self.port.in_waiting != 0:
                 command = self.port.read(self.port.in_waiting)
                 address = command[0]
+                time_received = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 device_address = self.address.get()
                 if device_address.strip() == "" or address != int(device_address):
                     continue
@@ -164,6 +174,7 @@ class App:
                 response = None
                 starting_register = self.data_packer.unpack(command[2:4])[0]
                 print("Device Address: {0}".format(address))
+                print("Time Received: {0}".format(time_received))
                 print("Received Command: {0}".format(binascii.hexlify(command)))
                 if mode == b"\x03":
                     mode = "Read"
@@ -215,6 +226,7 @@ class App:
                         self.data_queue.put(
                             [
                                 address,
+                                time_received,
                                 binascii.hexlify(command),
                                 mode,
                                 binascii.hexlify(response),
@@ -236,9 +248,10 @@ class App:
                 ):
                     if self.address.get() != "":
                         self.address.set(data[0])
-                    self.entry_update(self.command_entry, data[1])
-                    self.entry_update(self.function_entry, data[2])
-                    self.entry_update(self.response_entry, data[3])
+                    self.entry_update(self.time_entry, data[1])
+                    self.entry_update(self.command_entry, data[2])
+                    self.entry_update(self.function_entry, data[3])
+                    self.entry_update(self.response_entry, data[4])
                 # else:
                 #     self.entry_update(self.address_entry, '')
                 #     self.entry_update(self.command_entry, '')
