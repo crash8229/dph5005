@@ -13,7 +13,6 @@ import queue
 import threading
 import time
 
-from command_handler import Command_Handler
 from interface import DPH5005
 from serial_port_scanner import serial_ports
 
@@ -43,12 +42,6 @@ class MainScreen(Screen):
         self.ports = list()
         self.read_timer = 0
         self.last_reading = dict()
-
-        self.command_queue = queue.PriorityQueue()
-        self.data_queue = queue.Queue(1)
-        self.commander_thread = threading.Thread(
-            target=Command_Handler, args=(self.command_queue, self.data_queue, self.device), daemon=True)
-        self.commander_thread.start()
 
         self.serial_port_menu = DropDown()
         self.serial_port_update()
@@ -171,13 +164,6 @@ class MainScreen(Screen):
             float(num)
         except ValueError:
             return False
-        return True
-
-    def on_close(self):
-        on_close()
-
-    def slider_send(self, slider):
-        slider.changed = True
         return True
 
     def update(self, dt):
