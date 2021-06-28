@@ -1,23 +1,30 @@
+#!/usr/bin/python3
+
 import struct
 import threading
+from typing import Optional, List, Dict, Tuple, Union, Sequence
 
 import serial
 
-function = {"read": b"\x03", "single_write": b"\x06", "multiple_write": b"\x10"}
+function: Dict[str, bytes] = {
+    "read": b"\x03",
+    "single_write": b"\x06",
+    "multiple_write": b"\x10",
+}
 
-byte_packer = struct.Struct(">B")
-data_packer = struct.Struct(">H")
-crc_packer = struct.Struct("<H")
+byte_packer: struct.Struct = struct.Struct(">B")
+data_packer: struct.Struct = struct.Struct(">H")
+crc_packer: struct.Struct = struct.Struct("<H")
 
 
 class DPH5005:
-    def __init__(self):
-        self.port = None
-        self.cmd_lock = threading.Lock()
+    def __init__(self) -> None:
+        self.port: Optional[serial.Serial] = None
+        self.cmd_lock: threading.Lock = threading.Lock()
 
         # Model # of DPH5005 is b'\x14\x55' in hex or 5205 in decimal
 
-        self.registers = {
+        self.registers: Dict[str, bytes] = {
             "V-SET": b"\x00\x00",
             "I-SET": b"\x00\x01",
             "V-OUT": b"\x00\x02",
@@ -33,7 +40,7 @@ class DPH5005:
             "VERSION": b"\x00\x0C",
         }
 
-        self.register_order = [
+        self.register_order: List[str] = [
             "V-SET",
             "I-SET",
             "V-OUT",
@@ -49,7 +56,7 @@ class DPH5005:
             "VERSION",
         ]
 
-        self.limits = {
+        self.limits: Dict[str, Tuple[int, int]] = {
             "ADDRESS": (1, 255),
             "V-SET": (0, 50),
             "I-SET": (0, 5),
@@ -58,7 +65,7 @@ class DPH5005:
             "B-LED": (0, 5),
         }
 
-        self.precision = {
+        self.precision: Dict[str, int] = {
             "ADDRESS": 0,
             "V-SET": 2,
             "I-SET": 3,
@@ -77,7 +84,7 @@ class DPH5005:
 
     # Generates the CRC for the modbus packet
     @staticmethod
-    def get_crc(message):
+    def get_crc(message: bytes) -> bytes:
         msg = bytearray(message)
         crc = 0xFFFF
         for b in msg:
@@ -91,7 +98,7 @@ class DPH5005:
         return crc_packer.pack(crc)
 
     # Handles connecting to a serial port. If it was connected to a previous port. it will disconnect from it first.
-    def connect_port(self, port):
+    def connect_port(self, port: str) -> bool:
         self.disconnect_port()
         try:
             self.port = serial.Serial(port, timeout=1)
@@ -99,23 +106,23 @@ class DPH5005:
             return False
         return True
 
-    def is_port_alive(self):
+    def is_port_alive(self) -> bool:
         if self.port is None:
             return False
         try:
-            self.port.in_waiting
+            self.port.inWaiting()
         except (OSError, serial.SerialException):
             self.disconnect_port()
             return False
         return True
 
     # Handles closing the serial port if one was opened.
-    def disconnect_port(self):
+    def disconnect_port(self) -> None:
         if self.port is not None:
             self.port.close()
             self.port = None
 
-    def __send(self, command, byte_length):
+    def __send(self, command: bytes, byte_length: int) -> bytes:
         with self.cmd_lock:
             if self.is_port_alive():
                 self.port.write(command)
@@ -131,31 +138,36 @@ class DPH5005:
     # data = read does not have any extra data needed
     #        single write just needs the value to write in the register
     #        multiple write needs a tuple of the data to be written to each register
-    def send_command(self, address, mode, registers, data=None):
+    def send_command(
+        self,
+        address: int,
+        mode: str,
+        register: str,
+        *,
+        num_reg: Optional[int] = None,
+        data: Union[int, Sequence[int], None] = None
+    ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
         # Assemble the command and its expected response
         command = byte_packer.pack(address)
         command += function[mode]
         expected_response = command
-        if isinstance(registers, tuple) or isinstance(registers, list):
-            command += self.registers[registers[0]]
-        else:
-            command += self.registers[registers]
+        command += self.registers[register]
         if mode == "read":
-            command += data_packer.pack(registers[1])
-            expected_response += byte_packer.pack(registers[1] * 2)
-            for i in range(0, registers[1]):
+            command += data_packer.pack(num_reg)
+            expected_response += byte_packer.pack(num_reg * 2)
+            for i in range(0, num_reg):
                 expected_response += b"\x00\x00"
         elif mode == "single_write":
             command += data_packer.pack(data)
-            expected_response += self.registers[registers]
+            expected_response += self.registers[register]
             expected_response += data_packer.pack(data)
         elif mode == "multiple_write":
-            command += data_packer.pack(registers[1])
-            command += byte_packer.pack(2 * registers[1])
-            for i in range(0, registers[1]):
+            command += data_packer.pack(num_reg)
+            command += byte_packer.pack(2 * num_reg)
+            for i in range(0, num_reg):
                 command += data_packer.pack(data[i])
-            expected_response += self.registers[registers[0]]
-            expected_response += data_packer.pack(registers[1])
+            expected_response += self.registers[register]
+            expected_response += data_packer.pack(num_reg)
         command += self.get_crc(command)
         expected_response += self.get_crc(expected_response)
 
@@ -166,9 +178,21 @@ class DPH5005:
         if response[-2:] == self.get_crc(response[:-2]):
             return True, self.__parse_response(command, response)
         else:
-            return False, {"mode": mode}
+            idx = self.register_order.index(register)
+            registers_affected = (
+                (register,)
+                if num_reg is None
+                else self.register_order[idx : idx + num_reg]
+            )
+            return False, {
+                "address": address,
+                "mode": mode,
+                "registers": tuple(registers_affected),
+            }
 
-    def __parse_response(self, command, response):
+    def __parse_response(
+        self, command: bytes, response: bytes
+    ) -> Dict[str, Union[int, str, tuple]]:
         parsed_data = dict()
 
         # Gets the address
@@ -207,12 +231,12 @@ class DPH5005:
                 response = response[2:]
         elif mode == "single_write":
             register = response[:2]
-            parsed_data["data"] = data_packer.unpack(response[2:])[0]
+            parsed_data["data"] = (data_packer.unpack(response[2:])[0],)
             for item in self.registers.items():
                 if register == item[1]:
                     register = item[0]
                     break
-            parsed_data["registers"] = register
+            parsed_data["registers"] = (register,)
         elif mode == "multiple_write":
             starting_register = response[:2]
             number_of_registers = data_packer.unpack(response[2:])[0]
@@ -231,13 +255,24 @@ class DPH5005:
                 parsed_data["data"].append(data_packer.unpack(command[:2])[0])
                 command = command[2:]
         else:
-            # It should never reach this point as it check for a valid packet, but it does hurt to have it.
+            # It should never reach this point as it checks for a valid packet, but it does hurt to have it.
             return dict()
+        parsed_data["registers"] = tuple(parsed_data["registers"])
+        parsed_data["data"] = tuple(parsed_data["data"])
         return parsed_data
 
 
 if __name__ == "__main__":
     dph = DPH5005()
     dph.connect_port("/dev/tnt0")
-    # print(dph.send_command(1, 'read', ['PROTECT', 2], [0, 4, 3, 4]))
-    print(dph.send_command(1, "read", ("V-SET", 11)))
+    print(dph.send_command(address=1, mode="read", register="V-SET", num_reg=11))
+    print(dph.send_command(address=1, mode="single_write", register="V-SET", data=11))
+    print(
+        dph.send_command(
+            address=1,
+            mode="multiple_write",
+            register="V-SET",
+            num_reg=2,
+            data=(5, 500),
+        )
+    )
