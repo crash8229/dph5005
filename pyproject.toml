@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "dph5005"
+version = "0.1.0"
+description = "GUI for controlling a DPH5005 on a Raspberry Pi"
+authors = ["crash8229 <mu304007@gmail.com>"]
+license = "LICENSE"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.7.*"
+PySide2 = "^5.15.2"
+pyserial = "^3.5"
+pyqt-led = "^0.0.6"
+pyqtgraph = "^0.12.1"
+
+[tool.poetry.dev-dependencies]
+black = "^21.6-beta.0"
+pytest = "^6.2.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
