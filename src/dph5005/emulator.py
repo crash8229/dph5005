@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import binascii
 import datetime
 import queue

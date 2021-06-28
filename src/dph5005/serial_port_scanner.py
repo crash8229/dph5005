@@ -1,11 +1,13 @@
 #!/usr/bin/python3
+
 import glob
 import sys
+from typing import List
 
 import serial
 
 
-def serial_ports():
+def serial_ports() -> List[str]:
     """Lists serial port names
 
     :raises EnvironmentError:
@@ -16,11 +18,12 @@ def serial_ports():
     if sys.platform.startswith("win"):
         ports = ["COM%s" % (i + 1) for i in range(256)]
     elif sys.platform.startswith("linux") or sys.platform.startswith("cygwin"):
-        ports = glob.glob("/dev/tnt*")
-        # this excludes your current terminal "/dev/tty"
+        # Add tty0tty ports to be scanned
+        ports: List[str] = glob.glob("/dev/tnt*")
+        # This excludes your current terminal "/dev/tty"
         ports.extend(glob.glob("/dev/tty[A-Za-z]*"))
     elif sys.platform.startswith("darwin"):
-        ports = glob.glob("/dev/tty.*")
+        ports: List[str] = glob.glob("/dev/tty.*")
     else:
         raise EnvironmentError("Unsupported platform")
 
