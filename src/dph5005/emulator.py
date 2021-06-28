@@ -8,7 +8,6 @@ import threading
 import tkinter as tk
 
 import serial
-
 from interface import DPH5005
 
 
@@ -45,19 +44,28 @@ class App:
         self.root = root
         root.grid_columnconfigure(index=1, weight=1)
         root.title("DPH5005 Emulator")
+        bg_color = root["background"]
 
         frame = tk.Frame(root)
         frame.grid(row=0, column=0, sticky="we", columnspan=2)
         tk.Label(frame, text="Ignore Function: ", justify=tk.LEFT).pack(side=tk.LEFT)
         self.read_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(frame, variable=self.read_var, text="Read").pack(side=tk.LEFT)
+        tk.Checkbutton(
+            frame, variable=self.read_var, text="Read", selectcolor=bg_color
+        ).pack(side=tk.LEFT)
         self.single_write_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(frame, variable=self.single_write_var, text="Single Write").pack(
-            side=tk.LEFT
-        )
+        tk.Checkbutton(
+            frame,
+            variable=self.single_write_var,
+            text="Single Write",
+            selectcolor=bg_color,
+        ).pack(side=tk.LEFT)
         self.multiple_write_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
-            frame, variable=self.multiple_write_var, text="Multiple Write"
+            frame,
+            variable=self.multiple_write_var,
+            text="Multiple Write",
+            selectcolor=bg_color,
         ).pack(side=tk.LEFT)
 
         self.address = tk.StringVar(name="address")
