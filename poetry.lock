@@ -2100,6 +2100,30 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "qdarkstyle"
+version = "3.0.2"
+description = "The most complete dark/light style sheet for C++/Python and Qt applications"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+qtpy = ">=1.9"
+
+[package.extras]
+develop = ["qtsass", "watchdog"]
+docs = ["sphinx", "sphinx-rtd-theme"]
+example = ["pyqt5", "pyside2"]
+
+[[package]]
+name = "qtpy"
+version = "1.9.0"
+description = "Provides an abstraction layer on top of the various Qt bindings (PyQt5, PyQt4 and PySide) and additional custom QWidgets."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "regex"
 version = "2021.4.4"
 description = "Alternative regular expression module, to replace re."
@@ -2162,7 +2186,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "3.7.*"
-content-hash = "e46db1e666e368c71a78d5adabf8722a796da7d1e318a1ed9935a61a0e526c0b"
+content-hash = "fd5ab94c65dd672eb4e9c31f9b336c118433a01ad196164a76187b702d071ea5"
 
 [metadata.files]
 appdirs = [
@@ -2976,6 +3000,14 @@ python3-xlib = [
 ]
 pytweening = [
     {file = "PyTweening-1.0.3.zip", hash = "sha256:4b608a570f4dccf2201e898f643c2a12372eb1d71a3dbc7e778771b603ca248b"},
+]
+qdarkstyle = [
+    {file = "QDarkStyle-3.0.2-py2.py3-none-any.whl", hash = "sha256:7c791535cc20b3cc1e8e1bf6b88dabe53cb0615983df702be83597e73ada2558"},
+    {file = "QDarkStyle-3.0.2.tar.gz", hash = "sha256:55d149cf5f40ee297397f1818e091118cefb855a4a9c5c38566c47acd2d8c7ae"},
+]
+qtpy = [
+    {file = "QtPy-1.9.0-py2.py3-none-any.whl", hash = "sha256:fa0b8363b363e89b2a6f49eddc162a04c0699ae95e109a6be3bb145a913190ea"},
+    {file = "QtPy-1.9.0.tar.gz", hash = "sha256:2db72c44b55d0fe1407be8fba35c838ad0d6d3bb81f23007886dc1fc0f459c8d"},
 ]
 regex = [
     {file = "regex-2021.4.4-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:619d71c59a78b84d7f18891fe914446d07edd48dc8328c8e149cbe0929b4e000"},
