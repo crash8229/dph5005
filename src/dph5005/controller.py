@@ -9,299 +9,121 @@
 # 5 - read all
 
 import os
-import queue
-import threading
-import time
+import sys
+from typing import Optional, List
 
+import qdarkstyle
+from PySide2 import QtCore as QC
+from PySide2 import QtWidgets as QW
+from PySide2.QtGui import QFontDatabase
 from interface import DPH5005
 from serial_port_scanner import serial_ports
 
-root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '')
+root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "")
 
 
-class MainScreen(Screen):
+class IndicatorWithLabel(QW.QWidget):
+    def __init__(self, parent: Optional[QW.QWidget]):
+        super().__init__(parent)
 
-    def __init__(self, **kwargs):
-        super(MainScreen, self).__init__(**kwargs)
-        Clock.schedule_interval(self.update, 0.25)
+
+class DPH5005Controller(QW.QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle("DPH5005 Controller")
+        self.setFixedSize(800, 480)
 
         self.device = DPH5005()
 
-        self.update_list = {'V-SET': self.v_set,
-                            'I-SET': self.i_set,
-                            'V-OUT': self.v_out,
-                            'I-OUT': self.i_out,
-                            'POWER': self.power,
-                            'V-IN': self.v_in,
-                            'LOCK': self.lock,
-                            'PROTECT': self.protect,
-                            'CV/CC': self.cvcc,
-                            'ON/OFF': self.enable,
-                            'B-LED': self.b_led_set}
+        self.__gui_setup()
 
-        self.ports = list()
-        self.read_timer = 0
-        self.last_reading = dict()
+    def __gui_setup(self) -> None:
+        main_tabs = QW.QTabWidget(self)
+        self.setCentralWidget(main_tabs)
 
-        self.serial_port_menu = DropDown()
-        self.serial_port_update()
-        self.serial_port_button.bind(on_release=self.serial_port_menu.open)
-        self.serial_port_menu.bind(on_select=self.serial_connect)
+        #### Control Tab ####
+        control_window = QW.QWidget(main_tabs)
+        control_layout = QW.QGridLayout(control_window)
+        main_tabs.addTab(control_window, "Control")
+
+        # Title
+        title = QW.QLabel(" DPH5005 Controller", control_window)
+        # title.setAlignment(QC.Qt.AlignCenter)
+        control_layout.addWidget(
+            title, 0, 0, columnSpan=3, alignment=QC.Qt.AlignHCenter
+        )
+
+        # Close Button
+        close_button = QW.QPushButton("X", control_window)
+        close_button.setFixedSize(15, 20)
+        close_button.clicked.connect(self.close)
+        control_layout.addWidget(close_button, 0, 2)
+
+        # Serial Port Connection
+
+        # Readings
+        reading_group = QW.QGroupBox("Readings", control_window)
+        control_layout.addWidget(reading_group, 2, 0, rowSpan=3, columnSpan=3)
+
+    @staticmethod
+    def get_ports() -> List[str]:
+        ports = serial_ports()
+        # Exclude Raspberry Pi serial port used for bluetooth
+        if "/dev/ttyAMA0" in ports:
+            ports.remove("/dev/ttyAMA0")
+        return ports
 
     def serial_port_update(self):
         self.ports = self.get_ports()
-        self.serial_port_menu.clear_widgets()
-        for port in self.ports:
-            btn = Button(text=port, size_hint=(1, None), font_size=self.serial_port_button.font_size)
-            btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
-            self.serial_port_menu.add_widget(btn)
-        if self.device.is_port_alive():
-            btn = Button(text='Disconnect', size_hint=(1, None), font_size=self.serial_port_button.font_size)
-            btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
-            self.serial_port_menu.add_widget(btn)
-
-    def get_ports(self):
-        ports = serial_ports()
-        if '/dev/ttyAMA0' in ports:
-            ports.remove('/dev/ttyAMA0')
-        return ports
-
-    def lock_toggle(self):
-        if self.lock.value == 0:
-            self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 1)))
-            self.lock.background_color = (0, 1, 0, 1)
-            self.lock.value = 1
-            self.lock.changed = True
-        elif self.lock.value == 1:
-            self.command_queue.put(item=(3, int(time.time()), (self.address.value, 'single_write', 'LOCK', 0)))
-            self.lock.background_color = (1, 0, 0, 1)
-            self.lock.value = 0
-            self.lock.changed = True
-
-    def enable_toggle(self):
-        if self.enable.value == 0:
-            self.command_queue.put(item=(1, int(time.time()), (self.address.value, 'single_write', 'ON/OFF', 1)))
-            self.enable.text = 'ON'
-            self.enable.background_color = (0, 1, 0, 1)
-            self.enable.value = 1
-            self.enable.changed = True
-        elif self.enable.value == 1:
-            self.command_queue.put(item=(1, int(time.time()), (self.address.value, 'single_write', 'ON/OFF', 0)))
-            self.enable.text = 'OFF'
-            self.enable.background_color = (1, 0, 0, 1)
-            self.enable.value = 0
-            self.enable.changed = True
-
-    def validate_address(self):
-        if self.address.text == '':
-            self.address.text = str(self.address.value)
-            return
-        self.address.value = int(self.limit_check('ADDRESS', int(self.address.text)))
-        self.address.text = str(self.address.value)
-        self.address.changed = True
-        self.address.status.source = os.path.join(root, 'images/x.png')
-
-    def validate_text(self, name, slider, text):
-        if text.text == '':
-            text.text = str(slider.value)
-        value = self.limit_check(name, float(text.text))
-        if name == 'B-LED':
-            text.text = str(int(value))
-        else:
-            text.text = str(value)
-        if slider.value != value:
-            slider.do_not_update = True
-            slider.value = value
-        text.changed = True
-        slider.changed = True
-        text.status.source = os.path.join(root, 'images/blank.png')
-
-    def validate_slider(self, name, slider, text):
-        # if slider.value != float(text.text):
-        if slider.do_not_update:
-            slider.do_not_update = False
-        value = self.limit_check(name, slider.value)
-        if name == 'B-LED':
-            text.text = str(int(value))
-        else:
-            text.text = str(value)
-        text.changed = True
-        text.status.source = os.path.join(root, 'images/blank.png')
-
-    def limit_check(self, name, value):
-        low, high = self.device.limits[name]
-        f = '{:.' + str(self.device.precision[name]) + 'f}'
-        value = float(f.format(value))
-        # if int(address.text) >= min and int(address.text) <= max:
-        if low <= value <= high:
-            return value
-        elif low > value:
-            return low
-        elif high < value:
-            return high
-        else:
-            return None
+        # self.serial_port_menu.clear_widgets()
+        # for port in self.ports:
+        #     btn = Button(text=port, size_hint=(1, None), font_# Tabsize=self.serial_port_button.font_size)
+        #     btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
+        #     self.serial_port_menu.add_widget(btn)
+        # if self.device.is_port_alive():
+        #     btn = Button(text='Disconnect', size_hint=(1, None), font_size=self.serial_port_button.font_size)
+        #     btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
+        #     self.serial_port_menu.add_widget(btn)
 
     def serial_disconnect(self):
         self.device.disconnect_port()
-        self.serial_port_button.text = 'Select Port'
-        self.serial_port_status.source = os.path.join(root, 'images/blank.png')
+        self.serial_port_button.text = "Select Port"
+        self.serial_port_status.source = os.path.join(root, "images/blank.png")
         self.address.changed = True
 
     def serial_connect(self, dropdown, port):
-        if port == 'Disconnect':
+        if port == "Disconnect":
             self.serial_disconnect()
             return
         self.serial_port_button.text = port
         if self.device.connect_port(port):
-            self.serial_port_status.source = os.path.join(root, 'images/check.png')
+            self.serial_port_status.source = os.path.join(root, "images/check.png")
         else:
-            self.serial_port_status.source = os.path.join(root, 'images/x.png')
+            self.serial_port_status.source = os.path.join(root, "images/x.png")
         self.address.changed = True
 
-    def is_number(self, num):
-        try:
-            float(num)
-        except ValueError:
-            return False
-        return True
-
-    def update(self, dt):
+    def update_loop(self, dt):
         self.serial_port_check()
         self.address_check()
-        self.slider_check()
         self.read_timer += dt
         self.read_device()
 
-    def serial_port_check(self):
-        if self.serial_port_button.text != 'Select Port' and not self.device.is_port_alive():
-            self.device.disconnect_port()
-            self.serial_port_update()
-            self.serial_port_button.text = 'Select Port'
-            self.serial_port_status.source = os.path.join(root, 'images/blank.png')
-            self.address.changed = True
-            self.controllers.disabled = True
-        if self.ports != self.get_ports():
-            self.serial_port_update()
-            if self.serial_port_button.text in self.ports:
-                self.serial_port_button.text = 'Select Port'
-                self.serial_port_status.source = os.path.join(root, 'images/blank.png')
-                # self.serial_port_update()
-                self.address.changed = True
-                self.controllers.disabled = True
 
-    def address_check(self):
-        if self.address.changed:
-            if self.device.is_port_alive() and self.address.value is not None:
-                self.command_queue.put(item=(0, int(time.time()), (self.address.value, 'read', ('MODEL', 1))))
-                if self.data_queue.full():
-                    self.data_queue.get_nowait()
-                while self.data_queue.empty():
-                    pass
-                data = self.data_queue.get()
-                if data[0] and data[1]['data'][0] == 5205:
-                    self.address.status.source = os.path.join(root, 'images/check.png')
-                    self.address.changed = False
-                    self.controllers.disabled = False
-                else:
-                    self.address.status.source = os.path.join(root, 'images/x.png')
-                    self.address.changed = False
-                    self.controllers.disabled = True
-            else:
-                if self.address.status.source == os.path.join(root, 'images/check.png'):
-                    self.address.status.source = os.path.join(root, 'images/x.png')
-                    self.controllers.disabled = True
+if __name__ == "__main__":
+    app = QW.QApplication([])
+    app.setFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
+    app.setStyle(qdarkstyle.load_stylesheet_pyside2())
+    window = DPH5005Controller()
 
-    def slider_check(self):
-        if not self.controllers.disabled and self.device.is_port_alive():
-            if self.v_set.slider.changed or self.i_set.slider.changed:
-                data = list()
-                data.append(int(self.v_set.slider.value * 10 ** self.device.precision['V-SET']))
-                data.append(int(self.i_set.slider.value * 10 ** self.device.precision['I-SET']))
-                self.command_queue.put(
-                    item=(2, int(time.time()), (self.address.value, 'multiple_write', ('V-SET', 2), data)))
-                self.v_set.slider.changed = False
-                self.i_set.slider.changed = False
-            if self.b_led_set.slider.changed:
-                data = int(self.b_led_set.slider.value * 10 ** self.device.precision['B-LED'])
-                self.command_queue.put(item=(4, int(time.time()), (self.address.value, 'single_write', 'B-LED', data)))
-                self.b_led_set.slider.changed = False
+    rpi = False
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/sys/firmware/devicetree/base/model", "r") as f:
+                model = f.readline()
+            if "raspberry pi" in model.lower():
+                rpi = True
+        except FileNotFoundError:
+            pass
+    window.showFullScreen() if rpi else window.show()
 
-    def read_device(self):
-        if self.read_timer <= 0.5:  # Refresh rate
-            return
-        self.read_timer = 0
-        if not self.controllers.disabled and self.device.is_port_alive():
-            # ['V-SET', 'I-SET', 'V-OUT', 'I-OUT', 'POWER', 'V-IN', 'LOCK', 'PROTECT', 'CV/CC', 'ON/OFF', 'B-LED']
-            self.command_queue.put(item=(5, int(time.time()), (self.address.value, 'read', ('V-SET', 11))))
-            if self.data_queue.empty():
-                return
-            check, data = self.data_queue.get_nowait()
-            if check:
-                data = dict(zip(data['registers'], data['data']))
-                for item in data.items():
-                    name, datum = item
-                    controller = self.update_list[name]
-                    if name == 'V-SET' or name == 'I-SET' or name == 'B-LED':
-                        if controller.changed:
-                            controller.changed = False
-                            continue
-                        elif controller.slider.value == datum:
-                            continue
-                        if name == 'B-LED':
-                            value = int(datum * 10 ** (-1 * self.device.precision[name]))
-                            controller.slider.value = value
-                        else:
-                            f = '{:.' + str(self.device.precision[name]) + 'f}'
-                            value = float(f.format(datum * 10 ** (-1 * self.device.precision[name])))
-                            controller.slider.value = value
-                    elif name == 'LOCK':
-                        if controller.changed:
-                            controller.changed = False
-                            continue
-                        if self.lock.value != datum:
-                            self.lock_toggle()
-                    elif name == 'ON/OFF':
-                        if controller.changed:
-                            controller.changed = False
-                            continue
-                        if self.enable.value != datum:
-                            self.enable_toggle()
-                    elif name == 'CV/CC':
-                        if self.cvcc.value == datum:
-                            continue
-                        self.cvcc.value = datum
-                        if datum == 0:
-                            self.cvcc.text = 'CV'
-                        elif datum == 1:
-                            self.cvcc.text = 'CC'
-                    elif name == 'PROTECT':
-                        if self.protect.value == datum:
-                            continue
-                        if datum == 0:
-                            self.protect.text = 'OK'
-                            self.protect.color = (0, 1, 0, 1)
-                            self.protect.value = 0
-                        elif datum == 1:
-                            self.protect.text = 'OVP'
-                            self.protect.color = (1, 0, 0, 1)
-                            self.protect.value = 1
-                        elif datum == 2:
-                            self.protect.text = 'OCP'
-                            self.protect.color = (1, 0, 0, 1)
-                            self.protect.value = 2
-                        elif datum == 3:
-                            self.protect.text = 'OPP'
-                            self.protect.color = (1, 0, 0, 1)
-                            self.protect.value = 3
-                    else:
-                        f = '{:.' + str(self.device.precision[name]) + 'f}'
-                        controller.text = f.format(datum * 10 ** (-1 * self.device.precision[name]))
-            else:
-                self.address.changed = True
-                self.controllers.disabled = True
-                self.address.status.source = os.path.join(root, 'images/x.png')
-
-
-if __name__ == '__main__':
-    DPH5005Controller().run()
+    app.exec_()
