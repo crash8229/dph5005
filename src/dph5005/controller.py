@@ -112,7 +112,7 @@ class DPH5005Controller(QW.QMainWindow):
 if __name__ == "__main__":
     app = QW.QApplication([])
     app.setFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
-    app.setStyle(qdarkstyle.load_stylesheet_pyside2())
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyside2())
     window = DPH5005Controller()
 
     rpi = False
