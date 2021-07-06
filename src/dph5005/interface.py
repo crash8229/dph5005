@@ -23,6 +23,7 @@ class DPH5005:
         self.cmd_lock: threading.Lock = threading.Lock()
 
         # Model # of DPH5005 is b'\x14\x55' in hex or 5205 in decimal
+        self.model = 5205
 
         self.registers: Dict[str, bytes] = {
             "V-SET": b"\x00\x00",
@@ -266,6 +267,7 @@ if __name__ == "__main__":
     dph = DPH5005()
     dph.connect_port("/dev/tnt0")
     print(dph.send_command(address=1, mode="read", register="V-SET", num_reg=11))
+    print(dph.send_command(1, "read", "MODEL", num_reg=1))
     print(dph.send_command(address=1, mode="single_write", register="V-SET", data=11))
     print(
         dph.send_command(
