@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 
-# OP_CODE
-# 0 - read model
-# 1 - ON/OFF
-# 2 - V-SET
-# 3 - LOCK
-# 4 - B-LED
-# 5 - read all
-
 import os
 import sys
-from typing import Optional, List
+from typing import Optional, List, Sequence, Union, Tuple, Dict
 
 import qdarkstyle
 from interface import DPH5005
@@ -18,6 +10,7 @@ from qtpy import QtCore as QC
 from qtpy import QtGui as QG
 from qtpy import QtWidgets as QW
 from qtpy_led import Led
+from serial.serialutil import SerialException
 from serial_port_scanner import serial_ports
 
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "")
@@ -55,16 +48,97 @@ class DPH5005Controller(QW.QMainWindow):
 
         self.__gui_setup()
 
+        self.serial_port_refresh()
+
+    def closeEvent(self, event):
+        self.serial_disconnect()
+        event.accept()
+
+    #### Public Functions ####
+    @staticmethod
+    def get_ports() -> List[str]:
+        ports = serial_ports()
+        # Exclude Raspberry Pi serial port used for bluetooth
+        if "/dev/ttyAMA0" in ports:
+            ports.remove("/dev/ttyAMA0")
+        return ports
+
+    @property
+    def address(self) -> int:
+        return int(self.__address.text())
+
+    def serial_port_refresh(self) -> None:
+        ports = self.get_ports()
+        self.serial_port_menu.clear()
+        self.serial_port_menu.addItems(ports)
+        self.serial_port_menu.addItem("Refresh")
+        if self.device.is_port_alive():
+            port = self.device.port.port
+            self.serial_port_menu.setCurrentIndex(self.serial_port_menu.findText(port))
+
+    def serial_disconnect(self) -> None:
+        self.device.disconnect_port()
+        self.__device_state(False)
+        self.port_connected.turn_off()
+        self.connect_buttons.setCurrentIndex(0)
+        self.__address.setEnabled(True)
+        self.serial_port_menu.setEnabled(True)
+
+    def serial_connect(self) -> None:
+        port = self.serial_port_menu.currentText()
+
+        if self.device.is_port_alive():
+            self.serial_disconnect()
+
+        if self.device.connect_port(port):
+            # Port is open
+            self.port_connected.turn_on()
+            self.connect_buttons.setCurrentIndex(1)
+            self.__address.setEnabled(False)
+            self.serial_port_menu.setEnabled(False)
+
+            # Can we talk to the DPH5005 device
+            response = self.read("MODEL", 1)
+            if response[0] and response[1]["data"][0] == self.device.model:
+                self.__device_state(True)
+            else:
+                self.__device_state(False)
+        else:
+            self.serial_disconnect()
+
+    def read(
+        self, register: str, num_reg: int
+    ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
+        return self.__send_command("read", register, num_reg=num_reg)
+
+    def single_write(
+        self, register: str, data: int
+    ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
+        return self.__send_command("single_write", register, data=data)
+
+    def multiple_write(
+        self, register: str, num_reg: int, data: Sequence[int]
+    ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
+        return self.__send_command(
+            "multiple_write", register, num_reg=num_reg, data=data
+        )
+
+    #### Private Functions ####
+    # Creates the GUI
     def __gui_setup(self) -> None:
+        # Create tabs
         main_tabs = QW.QTabWidget(self)
         self.setCentralWidget(main_tabs)
-        led_size = (25, 25)
 
+        self.__gui_setup_control_tab(main_tabs)
+
+    def __gui_setup_control_tab(self, parent: QW.QTabWidget) -> None:
         #### Control Tab ####
-        control_window = QW.QWidget(main_tabs)
+        control_window = QW.QWidget(parent)
         control_layout = QW.QVBoxLayout(control_window)
         control_layout.setSpacing(0)
-        main_tabs.addTab(control_window, "Control")
+        parent.addTab(control_window, "Control")
+        led_size = (25, 25)
 
         ## Title ##
         title = QW.QLabel(" DPH5005 Controller", control_window)
@@ -78,13 +152,13 @@ class DPH5005Controller(QW.QMainWindow):
         connect_layout = QW.QHBoxLayout(connect_row)
 
         # Device Address Field
-        self.address = LineEditWithLabel("Address:", connect_row)
-        connect_layout.addWidget(self.address)
-        self.address = self.address.line_edit
-        self.address.setValidator(QG.QIntValidator(1, 255, self.address))
-        self.address.setMinimumWidth(38)
-        self.address.setMaximumWidth(38)
-        self.address.setText("255")
+        self.__address = LineEditWithLabel("Address:", connect_row)
+        connect_layout.addWidget(self.__address)
+        self.__address = self.__address.line_edit
+        self.__address.setValidator(QG.QIntValidator(1, 255, self.__address))
+        self.__address.setMinimumWidth(38)
+        self.__address.setMaximumWidth(38)
+        self.__address.setText("1")
 
         # Serial Port Menu
         serial_widget = QW.QWidget(connect_row)
@@ -98,12 +172,17 @@ class DPH5005Controller(QW.QMainWindow):
         serial_layout.addWidget(self.serial_port_menu, alignment=QC.Qt.AlignLeft)
         self.serial_port_menu.addItems(["/dev/ttyAMA0", "1", "2", "3"])
         self.serial_port_menu.setMinimumWidth(120)
+        self.serial_port_menu.currentIndexChanged.connect(
+            self.__serial_menu_index_changed
+        )
 
         # Connection Buttons
         self.connect_buttons = QW.QStackedWidget(connect_row)
         connect_layout.addWidget(self.connect_buttons)
         connect_button = QW.QPushButton("Connect", self.connect_buttons)
+        connect_button.clicked.connect(self.serial_connect)
         disconnect_button = QW.QPushButton("Disconnect", self.connect_buttons)
+        disconnect_button.clicked.connect(self.serial_disconnect)
         self.connect_buttons.addWidget(connect_button)
         self.connect_buttons.addWidget(disconnect_button)
 
@@ -125,46 +204,66 @@ class DPH5005Controller(QW.QMainWindow):
         self.device_connected.setFixedSize(*led_size)
         device_status.addWidget(self.device_connected, alignment=QC.Qt.AlignLeft)
 
-        ## Readings ##
-        reading_group = QW.QGroupBox("Readings", control_window)
-        control_layout.addWidget(reading_group)
+        ## Device related widget ##
+        device_fields = QW.QWidget(control_window)
+        device_fields_layout = QW.QVBoxLayout(device_fields)
+        self.device_fields = device_fields
+        device_fields.setEnabled(False)
+        control_layout.addWidget(device_fields)
 
-    @staticmethod
-    def get_ports() -> List[str]:
-        ports = serial_ports()
-        # Exclude Raspberry Pi serial port used for bluetooth
-        if "/dev/ttyAMA0" in ports:
-            ports.remove("/dev/ttyAMA0")
-        return ports
+        # Readings #
+        reading_group = QW.QGroupBox("Readings", device_fields)
+        device_fields_layout.addWidget(reading_group)
 
-    def serial_port_update(self):
-        self.ports = self.get_ports()
-        # self.serial_port_menu.clear_widgets()
-        # for port in self.ports:
-        #     btn = Button(text=port, size_hint=(1, None), font_# Tabsize=self.serial_port_button.font_size)
-        #     btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
-        #     self.serial_port_menu.add_widget(btn)
-        # if self.device.is_port_alive():
-        #     btn = Button(text='Disconnect', size_hint=(1, None), font_size=self.serial_port_button.font_size)
-        #     btn.bind(on_release=lambda btn: self.serial_port_menu.select(btn.text))
-        #     self.serial_port_menu.add_widget(btn)
+        # Controls #
+        control_group = QW.QGroupBox("Controls", device_fields)
+        device_fields_layout.addWidget(control_group)
 
-    def serial_disconnect(self):
-        self.device.disconnect_port()
-        self.serial_port_button.text = "Select Port"
-        self.serial_port_status.source = os.path.join(root, "images/blank.png")
-        self.address.changed = True
+    @QC.Slot(int)
+    def __serial_menu_index_changed(self, idx: int) -> None:
+        if (
+            self.serial_port_menu.count() > 0
+            and self.serial_port_menu.count() - 1 == idx
+        ):
+            self.serial_port_refresh()
 
-    def serial_connect(self, dropdown, port):
-        if port == "Disconnect":
-            self.serial_disconnect()
-            return
-        self.serial_port_button.text = port
-        if self.device.connect_port(port):
-            self.serial_port_status.source = os.path.join(root, "images/check.png")
+    def __device_state(self, state: bool) -> None:
+        self.device_connected.set_status(state)
+        self.device_fields.setEnabled(state)
+
+    def __send_command(
+        self,
+        mode: str,
+        register: str,
+        *,
+        num_reg: Optional[int] = None,
+        data: Union[int, Sequence[int], None] = None
+    ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
+        response = (False, {})
+        if self.device.is_port_alive():
+            try:
+                # If it fails, it will retry until it runs out of attempts
+                attempts_left = 1
+                while attempts_left > 0:
+                    attempts_left -= 1
+                    response = self.device.send_command(
+                        self.address, mode, register, num_reg=num_reg, data=data
+                    )
+                    if response[0]:
+                        attempts_left = 0
+                if not response[0]:
+                    # Something happened with the device, disable controls
+                    self.__device_state(False)
+            except SerialException:
+                # Something happened with the port
+                # Turn off port status led and disable device controls
+                self.port_connected.turn_off()
+                self.__device_state(False)
         else:
-            self.serial_port_status.source = os.path.join(root, "images/x.png")
-        self.address.changed = True
+            # Not connected to a port
+            # Call disconnect method to make sure the GUI is in the right state
+            self.serial_disconnect()
+        return response
 
     def update_loop(self, dt):
         self.serial_port_check()
