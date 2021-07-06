@@ -63,7 +63,6 @@ class DPH5005Controller(QW.QMainWindow):
         #### Control Tab ####
         control_window = QW.QWidget(main_tabs)
         control_layout = QW.QVBoxLayout(control_window)
-        # control_layout.setContentsMargins(0, 0, 0, 0)
         control_layout.setSpacing(0)
         main_tabs.addTab(control_window, "Control")
 
@@ -84,6 +83,7 @@ class DPH5005Controller(QW.QMainWindow):
         self.address = self.address.line_edit
         self.address.setValidator(QG.QIntValidator(1, 255, self.address))
         self.address.setMinimumWidth(38)
+        self.address.setMaximumWidth(38)
         self.address.setText("255")
 
         # Serial Port Menu
@@ -97,7 +97,7 @@ class DPH5005Controller(QW.QMainWindow):
         self.serial_port_menu = QW.QComboBox(serial_widget)
         serial_layout.addWidget(self.serial_port_menu, alignment=QC.Qt.AlignLeft)
         self.serial_port_menu.addItems(["/dev/ttyAMA0", "1", "2", "3"])
-        self.serial_port_menu.setMinimumWidth(110)
+        self.serial_port_menu.setMinimumWidth(120)
 
         # Connection Buttons
         self.connect_buttons = QW.QStackedWidget(connect_row)
