@@ -83,7 +83,7 @@ class DPH5005Controller(QW.QMainWindow):
         connect_layout.addWidget(self.address)
         self.address = self.address.line_edit
         self.address.setValidator(QG.QIntValidator(1, 255, self.address))
-        self.address.setMaximumWidth(38)
+        self.address.setMinimumWidth(38)
         self.address.setText("255")
 
         # Serial Port Menu
