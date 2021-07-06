@@ -113,16 +113,14 @@ class DPH5005Controller(QW.QMainWindow):
         # Connection Status
         port_status = QW.QHBoxLayout()
         connect_layout.addLayout(port_status)
-        port_status.addWidget(QW.QLabel("Port Connected?:"), alignment=QC.Qt.AlignRight)
+        port_status.addWidget(QW.QLabel("Port Status:"), alignment=QC.Qt.AlignRight)
         self.port_connected = Led(connect_row)
         self.port_connected.setFixedSize(*led_size)
         port_status.addWidget(self.port_connected, alignment=QC.Qt.AlignLeft)
 
         device_status = QW.QHBoxLayout()
         connect_layout.addLayout(device_status)
-        device_status.addWidget(
-            QW.QLabel("Device Connected?:"), alignment=QC.Qt.AlignRight
-        )
+        device_status.addWidget(QW.QLabel("Device Status:"), alignment=QC.Qt.AlignRight)
         self.device_connected = Led(connect_row)
         self.device_connected.setFixedSize(*led_size)
         device_status.addWidget(self.device_connected, alignment=QC.Qt.AlignLeft)
