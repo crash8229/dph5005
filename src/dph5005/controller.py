@@ -222,7 +222,7 @@ class DPH5005Controller(QW.QMainWindow):
     @QC.Slot(int)
     def __serial_menu_index_changed(self, idx: int) -> None:
         if (
-            self.serial_port_menu.count() > 0
+            self.serial_port_menu.count() > 1
             and self.serial_port_menu.count() - 1 == idx
         ):
             self.serial_port_refresh()
