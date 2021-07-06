@@ -10,9 +10,10 @@ readme = "README.md"
 python = "3.7.*"
 PySide2 = { markers = "platform_machine == 'x86_64' and platform_system == 'Linux'", url = "https://files.pythonhosted.org/packages/3d/21/c903d1d68882d9c813f4b291f04849281f2b42550c0fca88ff5dc9d9427c/PySide2-5.11.2-5.11.2-cp35.cp36.cp37-abi3-manylinux1_x86_64.whl" }
 pyserial = "^3.5"
-pyqt-led = "^0.0.6"
+qtpy_led = { git = "https://github.com/crash8229/qtpy_led.git" }
 pyqtgraph = "^0.12.1"
 QDarkStyle = "^3.0.2"
+QtPy = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.6-beta.0"
