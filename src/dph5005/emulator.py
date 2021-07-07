@@ -112,8 +112,8 @@ class App:
         self.response_entry.grid(row=5, column=1, sticky="we")
 
         r = 6
-        for i in range(0, len(self.dph.register_order)):
-            self.register_entries.append(tk.StringVar(name=self.dph.register_order[i]))
+        for i in range(0, len(self.dph.REGISTERS)):
+            self.register_entries.append(tk.StringVar(name=self.dph.REGISTERS[i]))
             self.register_entries[i].set(self.registers[i])
             self.register_entries[i].trace(
                 "w",
@@ -121,7 +121,7 @@ class App:
                     i
                 ], index=i: self.register_validate(var, index),
             )
-            tk.Label(root, text="{0}: ".format(self.dph.register_order[i])).grid(
+            tk.Label(root, text="{0}: ".format(self.dph.REGISTERS[i])).grid(
                 row=r, column=0, sticky=tk.W
             )
             tk.Entry(
@@ -149,7 +149,7 @@ class App:
         except ValueError:
             self.address.set(1)
             return
-        limit = self.dph.limits["ADDRESS"]
+        limit = self.dph.LIMITS["ADDRESS"]
         if value < limit[0] or value > limit[1]:
             self.address.set(1)
 
@@ -161,10 +161,10 @@ class App:
             value = int(value)
         except ValueError:
             return
-        if self.dph.register_order[index] in self.dph.limits:
-            name = self.dph.register_order[index]
-            limit = self.dph.limits[name]
-            real_value = value * 10 ** (-1 * self.dph.precision[name])
+        if self.dph.REGISTERS[index] in self.dph.LIMITS:
+            name = self.dph.REGISTERS[index]
+            limit = self.dph.LIMITS[name]
+            real_value = value * 10 ** (-1 * self.dph.DECIMAL_PLACES[name])
             if limit[0] <= real_value <= limit[1]:
                 self.registers[index] = value
         else:
