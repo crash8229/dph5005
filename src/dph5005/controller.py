@@ -38,6 +38,18 @@ class IndicatorWithLabel(QW.QWidget):
         layout.addWidget(self.indicator)
 
 
+class LedWithLabel(QW.QWidget):
+    def __init__(self, label: str, parent: Optional[QW.QWidget]):
+        super().__init__(parent)
+        layout = QW.QHBoxLayout(self)
+        layout.setSpacing(0)
+        self.label = QW.QLabel(label, self)
+        layout.addWidget(self.label, alignment=QC.Qt.AlignRight)
+        self.led = Led(parent)
+        layout.addWidget(self.led, alignment=QC.Qt.AlignLeft)
+        self.led.setFixedSize(25, 25)
+
+
 class DPH5005Controller(QW.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -99,7 +111,7 @@ class DPH5005Controller(QW.QMainWindow):
 
             # Can we talk to the DPH5005 device
             response = self.read("MODEL", 1)
-            if response[0] and response[1]["data"][0] == self.device.model:
+            if response[0] and response[1]["data"][0] == self.device.MODEL:
                 self.__device_state(True)
             else:
                 self.__device_state(False)
@@ -138,7 +150,6 @@ class DPH5005Controller(QW.QMainWindow):
         control_layout = QW.QVBoxLayout(control_window)
         control_layout.setSpacing(0)
         parent.addTab(control_window, "Control")
-        led_size = (25, 25)
 
         ## Title ##
         title = QW.QLabel(" DPH5005 Controller", control_window)
@@ -190,19 +201,13 @@ class DPH5005Controller(QW.QMainWindow):
         connect_layout.addWidget(QW.QLabel("|", connect_row))
 
         # Connection Status
-        port_status = QW.QHBoxLayout()
-        connect_layout.addLayout(port_status)
-        port_status.addWidget(QW.QLabel("Port Status:"), alignment=QC.Qt.AlignRight)
-        self.port_connected = Led(connect_row)
-        self.port_connected.setFixedSize(*led_size)
-        port_status.addWidget(self.port_connected, alignment=QC.Qt.AlignLeft)
+        self.port_connected = LedWithLabel("Port Status:", connect_row)
+        connect_layout.addWidget(self.port_connected)
+        self.port_connected = self.port_connected.led
 
-        device_status = QW.QHBoxLayout()
-        connect_layout.addLayout(device_status)
-        device_status.addWidget(QW.QLabel("Device Status:"), alignment=QC.Qt.AlignRight)
-        self.device_connected = Led(connect_row)
-        self.device_connected.setFixedSize(*led_size)
-        device_status.addWidget(self.device_connected, alignment=QC.Qt.AlignLeft)
+        self.device_connected = LedWithLabel("Device Status:", connect_row)
+        connect_layout.addWidget(self.device_connected, alignment=QC.Qt.AlignLeft)
+        self.device_connected = self.device_connected.led
 
         ## Device related widget ##
         device_fields = QW.QWidget(control_window)
@@ -214,6 +219,46 @@ class DPH5005Controller(QW.QMainWindow):
         # Readings #
         reading_group = QW.QGroupBox("Readings", device_fields)
         device_fields_layout.addWidget(reading_group)
+        readings_layout = QW.QVBoxLayout(reading_group)
+
+        # V-SET, I-SET, V-IN, PROTECT
+        # V-OUT, I-OUT, POWER, CV/CC
+        # ON/OFF, LOCK
+        self.readings = dict()
+
+        # Text Indicators
+        layout = QW.QGridLayout()
+        readings_layout.addLayout(layout)
+        readings_order = [
+            "V-SET",
+            "I-SET",
+            "V-IN",
+            "PROTECT",
+            "V-OUT",
+            "I-OUT",
+            "POWER",
+            "CV/CC",
+        ]
+        max_col = 4
+        row = 0
+        col = 0
+        for r in readings_order:
+            self.readings[r] = IndicatorWithLabel(f"{r}:", reading_group)
+            layout.addWidget(self.readings[r], row, col)
+            col += 1
+            self.readings[r] = self.readings[r].indicator
+            if col == max_col:
+                col = 0
+                row += 1
+
+        # LED Indicators
+        layout = QW.QHBoxLayout()
+        readings_layout.addLayout(layout)
+        readings_order = ["ON/OFF", "LOCK"]
+        for r in readings_order:
+            self.readings[r] = LedWithLabel(f"{r}:", reading_group)
+            layout.addWidget(self.readings[r], row, col)
+            self.readings[r] = self.readings[r].led
 
         # Controls #
         control_group = QW.QGroupBox("Controls", device_fields)
@@ -237,7 +282,7 @@ class DPH5005Controller(QW.QMainWindow):
         register: str,
         *,
         num_reg: Optional[int] = None,
-        data: Union[int, Sequence[int], None] = None
+        data: Union[int, Sequence[int], None] = None,
     ) -> Tuple[bool, Dict[str, Union[int, str, tuple]]]:
         response = (False, {})
         if self.device.is_port_alive():
