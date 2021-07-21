@@ -16,26 +16,27 @@ from serial_port_scanner import serial_ports
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "")
 
 
-class LineEditWithLabel(QW.QWidget):
+class WidgetWithLabel(QW.QWidget):
+    def __init__(
+        self, label: str, widget: QW.QWidget, parent: Optional[QW.QWidget] = None
+    ):
+        super().__init__(parent)
+        layout = QW.QFormLayout(self)
+        layout.setSpacing(0)
+        self.widget = widget
+        layout.addRow(label, widget)
+
+
+class LineEditWithLabel(WidgetWithLabel):
     def __init__(self, label: str, parent: Optional[QW.QWidget] = None):
-        super().__init__(parent)
-        layout = QW.QHBoxLayout(self)
-        layout.setSpacing(0)
-        self.label = QW.QLabel(label, self, alignment=QC.Qt.AlignRight)
-        layout.addWidget(self.label)
-        self.line_edit = QW.QLineEdit("", self, alignment=QC.Qt.AlignLeft)
-        layout.addWidget(self.line_edit)
+        self.line_edit = QW.QLineEdit("")
+        super().__init__(label, self.line_edit, parent)
 
 
-class IndicatorWithLabel(QW.QWidget):
+class IndicatorWithLabel(WidgetWithLabel):
     def __init__(self, label: str, parent: Optional[QW.QWidget]):
-        super().__init__(parent)
-        layout = QW.QHBoxLayout(self)
-        layout.setSpacing(0)
-        self.label = QW.QLabel(label, self, alignment=QC.Qt.AlignRight)
-        layout.addWidget(self.label)
-        self.indicator = QW.QLabel("", self, alignment=QC.Qt.AlignLeft)
-        layout.addWidget(self.indicator)
+        self.indicator = QW.QLabel("")
+        super().__init__(label, self.indicator, parent)
 
 
 class LedWithLabel(QW.QWidget):
