@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import argparse
 import binascii
 import datetime
 import queue
@@ -289,4 +290,14 @@ class App:
             entry.insert(0, text)
 
 
-App("/dev/tnt1", 250)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="DPH5005 Emulator",
+        description="Emulates the behavior of the DPH5005 over serial.",
+    )
+    parser.add_argument(
+        "-u", default=250, type=int, help="Rate in milliseconds to update the widgets"
+    )
+    parser.add_argument("port", help="Name of the port to listen on")
+    args = parser.parse_args()
+    App(args.port, args.u)
