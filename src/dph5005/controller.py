@@ -29,26 +29,19 @@ class WidgetWithLabel(QW.QWidget):
 
 class LineEditWithLabel(WidgetWithLabel):
     def __init__(self, label: str, parent: Optional[QW.QWidget] = None):
-        self.line_edit = QW.QLineEdit("")
-        super().__init__(label, self.line_edit, parent)
+        super().__init__(label, QW.QLineEdit(""), parent)
 
 
 class IndicatorWithLabel(WidgetWithLabel):
     def __init__(self, label: str, parent: Optional[QW.QWidget]):
-        self.indicator = QW.QLabel("")
-        super().__init__(label, self.indicator, parent)
+        super().__init__(label, QW.QLabel(""), parent)
 
 
-class LedWithLabel(QW.QWidget):
+class LedWithLabel(WidgetWithLabel):
     def __init__(self, label: str, parent: Optional[QW.QWidget]):
-        super().__init__(parent)
-        layout = QW.QHBoxLayout(self)
-        layout.setSpacing(0)
-        self.label = QW.QLabel(label, self)
-        layout.addWidget(self.label, alignment=QC.Qt.AlignRight)
-        self.led = Led(parent)
-        layout.addWidget(self.led, alignment=QC.Qt.AlignLeft)
-        self.led.setFixedSize(25, 25)
+        led = Led(parent)
+        led.setFixedSize(25, 25)
+        super().__init__(label, led, parent)
 
 
 class DPH5005Controller(QW.QMainWindow):
@@ -166,7 +159,7 @@ class DPH5005Controller(QW.QMainWindow):
         # Device Address Field
         self.__address = LineEditWithLabel("Address:", connect_row)
         connect_layout.addWidget(self.__address)
-        self.__address = self.__address.line_edit
+        self.__address = self.__address.widget
         self.__address.setValidator(QG.QIntValidator(1, 255, self.__address))
         self.__address.setMinimumWidth(38)
         self.__address.setMaximumWidth(38)
@@ -204,11 +197,11 @@ class DPH5005Controller(QW.QMainWindow):
         # Connection Status
         self.port_connected = LedWithLabel("Port Status:", connect_row)
         connect_layout.addWidget(self.port_connected)
-        self.port_connected = self.port_connected.led
+        self.port_connected = self.port_connected.widget
 
         self.device_connected = LedWithLabel("Device Status:", connect_row)
         connect_layout.addWidget(self.device_connected, alignment=QC.Qt.AlignLeft)
-        self.device_connected = self.device_connected.led
+        self.device_connected = self.device_connected.widget
 
         ## Device related widget ##
         device_fields = QW.QWidget(control_window)
@@ -221,6 +214,7 @@ class DPH5005Controller(QW.QMainWindow):
         reading_group = QW.QGroupBox("Readings", device_fields)
         device_fields_layout.addWidget(reading_group)
         readings_layout = QW.QVBoxLayout(reading_group)
+        reading_group.setMaximumHeight(120)
 
         # V-SET, I-SET, V-IN, PROTECT
         # V-OUT, I-OUT, POWER, CV/CC
@@ -228,29 +222,29 @@ class DPH5005Controller(QW.QMainWindow):
         self.readings = dict()
 
         # Text Indicators
-        layout = QW.QGridLayout()
+        layout = QW.QHBoxLayout()
         readings_layout.addLayout(layout)
         readings_order = [
             "V-SET",
-            "I-SET",
-            "V-IN",
-            "PROTECT",
             "V-OUT",
+            "I-SET",
             "I-OUT",
+            "V-IN",
             "POWER",
+            "PROTECT",
             "CV/CC",
         ]
-        max_col = 4
+        max_row = 2
         row = 0
-        col = 0
+        form = QW.QFormLayout()
         for r in readings_order:
-            self.readings[r] = IndicatorWithLabel(f"{r}:", reading_group)
-            layout.addWidget(self.readings[r], row, col)
-            col += 1
-            self.readings[r] = self.readings[r].indicator
-            if col == max_col:
-                col = 0
-                row += 1
+            self.readings[r] = QW.QLabel("", reading_group)
+            form.addRow(f"{r}:", self.readings[r])
+            row += 1
+            if row >= max_row:
+                row = 0
+                layout.addLayout(form)
+                form = QW.QFormLayout()
 
         # LED Indicators
         layout = QW.QHBoxLayout()
@@ -258,8 +252,8 @@ class DPH5005Controller(QW.QMainWindow):
         readings_order = ["ON/OFF", "LOCK"]
         for r in readings_order:
             self.readings[r] = LedWithLabel(f"{r}:", reading_group)
-            layout.addWidget(self.readings[r], row, col)
-            self.readings[r] = self.readings[r].led
+            layout.addWidget(self.readings[r], alignment=QC.Qt.AlignCenter)
+            self.readings[r] = self.readings[r].widget
 
         # Controls #
         control_group = QW.QGroupBox("Controls", device_fields)
