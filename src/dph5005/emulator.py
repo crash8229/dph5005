@@ -262,8 +262,7 @@ class DPH5005Emulator:
                 time.sleep(0.001)  # Small sleep
 
     def update(self):
-        # print('updating ... is thread alive: {0}'.format(self.thread.is_alive()))
-        # print(self.address_entry.get())
+        start = time.perf_counter()
         with self.lock:
             if self.data_queue.full():
                 data = self.data_queue.get()
@@ -279,7 +278,9 @@ class DPH5005Emulator:
                     self.entry_update(self.function_entry, data[2])
                     self.entry_update(self.response_entry, data[3])
         self.register_entry_update()
-        self.root.after(self.update_rate, self.update)
+        self.root.after(
+            round(self.update_rate - (time.perf_counter() - start)), self.update
+        )
 
     def register_entry_update(self):
         for i in range(0, len(self.register_entries)):
