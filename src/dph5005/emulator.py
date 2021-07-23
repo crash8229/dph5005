@@ -6,20 +6,23 @@ import datetime
 import queue
 import struct
 import threading
+import time
 import tkinter as tk
 
 import serial
 from interface import DPH5005
 
 
-class App:
-    def __init__(self, port, update_rate):
+class DPH5005Emulator:
+    def __init__(self, port: str, interactive: bool = False, update_rate: int = 250):
         self.byte_packer = struct.Struct(">B")
         self.data_packer = struct.Struct(">H")
         self.port = serial.Serial(port, timeout=1)
         self.dph = DPH5005()
         self.update_rate = update_rate
+        self.__interactive = interactive
 
+        self.address = 1
         self.registers = [
             0,  # V-SET
             0,  # I-SET
@@ -41,6 +44,12 @@ class App:
         self.data_queue = queue.LifoQueue(1)
         self.lock: threading.Lock = threading.Lock()
 
+        if interactive:
+            self.__gui_setup()
+        else:
+            self.emulator()
+
+    def __gui_setup(self):
         root = tk.Tk()
         self.root = root
         root.grid_columnconfigure(index=1, weight=1)
@@ -69,14 +78,18 @@ class App:
             selectcolor=bg_color,
         ).pack(side=tk.LEFT)
 
-        self.address = tk.StringVar(name="address")
-        self.address.set("1")
-        self.address.trace("w", self.address_validate)
+        self.address_entry = tk.StringVar(name="address")
+        self.address_entry.set(f"{self.address}")
+        self.address_entry.trace("w", self.address_validate)
         tk.Label(root, text="Device Address: ").grid(row=1, column=0, sticky=tk.W)
-        self.address_entry = tk.Entry(
-            root, width=5, state=tk.NORMAL, justify=tk.CENTER, textvariable=self.address
+        address_entry = tk.Entry(
+            root,
+            width=5,
+            state=tk.NORMAL,
+            justify=tk.CENTER,
+            textvariable=self.address_entry,
         )
-        self.address_entry.grid(row=1, column=1, sticky=tk.W)
+        address_entry.grid(row=1, column=1, sticky=tk.W)
 
         tk.Label(root, text="Time Received: ").grid(row=2, column=0, sticky=tk.W)
         self.time_entry = tk.Entry(root, state=tk.DISABLED, justify=tk.CENTER)
@@ -142,17 +155,19 @@ class App:
         root.mainloop()
 
     def address_validate(self, *args):
-        value = self.address.get()
+        value = self.address_entry.get()
         if value == "":
             return
         try:
             value = int(value)
         except ValueError:
-            self.address.set(1)
+            self.address_entry.set(self.address)
             return
         limit = self.dph.LIMITS["ADDRESS"]
         if value < limit[0] or value > limit[1]:
-            self.address.set(1)
+            self.address_entry.set(self.address)
+            return
+        self.address = value
 
     def register_validate(self, var, index):
         value = var.get()
@@ -178,8 +193,8 @@ class App:
                 command = self.port.read(self.port.in_waiting)
                 address = command[0]
                 time_received = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                device_address = self.address.get()
-                if device_address.strip() == "" or address != int(device_address):
+                device_address = self.address
+                if address != device_address:
                     continue
                 mode = command[1:2]
                 response = None
@@ -227,7 +242,8 @@ class App:
                     print("Function: Unknown Function")
                 print("")
                 if (
-                    not (self.read_var.get() and mode == "Read")
+                    self.__interactive
+                    and not (self.read_var.get() and mode == "Read")
                     and not (self.single_write_var.get() and mode == "Single Write")
                     and not (self.multiple_write_var.get() and mode == "Multiple Write")
                 ):
@@ -236,13 +252,14 @@ class App:
                             self.data_queue.get()
                         self.data_queue.put(
                             [
-                                address,
                                 time_received,
                                 binascii.hexlify(command),
                                 mode,
                                 binascii.hexlify(response),
                             ]
                         )
+            else:
+                time.sleep(0.001)  # Small sleep
 
     def update(self):
         # print('updating ... is thread alive: {0}'.format(self.thread.is_alive()))
@@ -257,17 +274,10 @@ class App:
                         self.multiple_write_var.get() and data[2] == "Multiple Write"
                     )
                 ):
-                    if self.address.get() != "":
-                        self.address.set(data[0])
-                    self.entry_update(self.time_entry, data[1])
-                    self.entry_update(self.command_entry, data[2])
-                    self.entry_update(self.function_entry, data[3])
-                    self.entry_update(self.response_entry, data[4])
-                # else:
-                #     self.entry_update(self.address_entry, '')
-                #     self.entry_update(self.command_entry, '')
-                #     self.entry_update(self.function_entry, '')
-                #     self.entry_update(self.response_entry, '')
+                    self.entry_update(self.time_entry, data[0])
+                    self.entry_update(self.command_entry, data[1])
+                    self.entry_update(self.function_entry, data[2])
+                    self.entry_update(self.response_entry, data[3])
         self.register_entry_update()
         self.root.after(self.update_rate, self.update)
 
@@ -295,9 +305,17 @@ if __name__ == "__main__":
         prog="DPH5005 Emulator",
         description="Emulates the behavior of the DPH5005 over serial.",
     )
+    parser.add_argument("-i", action="store_true", help="Interactive mode with GUI")
     parser.add_argument(
         "-u", default=250, type=int, help="Rate in milliseconds to update the widgets"
     )
     parser.add_argument("port", help="Name of the port to listen on")
     args = parser.parse_args()
-    App(args.port, args.u)
+
+    # Exit gracefully on keyboard interrupt
+    try:
+        DPH5005Emulator(port=args.port, interactive=args.i, update_rate=args.u)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print("\nExiting")
