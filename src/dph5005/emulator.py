@@ -187,7 +187,29 @@ class DPH5005Emulator:
             if 0 <= value <= 65535:
                 self.registers[index] = value
 
+    @staticmethod
+    def pretty_print(data):
+        label = data[0]
+        len_label = len(max(data[0]))
+        value = [str(v) for v in data[1]]
+        len_value = len(max(value))
+        for lbl, val in zip(label, value):
+            print(f"{lbl:{len_label}}: {val:{len_value}}")
+
+    def print_info(self):
+        # Print out configuration
+        print("DPH5005 Emulator")
+        msg = (["Port", "Address", "Registers"], [self.port.port, self.address, ""])
+        self.pretty_print(msg)
+        msg = [[], []]
+        for reg in range(len(self.dph.REGISTERS)):
+            msg[0].append(f"  {self.dph.REGISTERS[reg]}")
+            msg[1].append(f"{self.registers[reg]:5d}")
+        self.pretty_print(msg)
+        print("")
+
     def emulator(self):
+        self.print_info()
         while True:
             if self.port.in_waiting != 0:
                 command = self.port.read(self.port.in_waiting)
