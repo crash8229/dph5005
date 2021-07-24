@@ -203,7 +203,7 @@ class DPH5005Emulator:
         self.pretty_print(msg)
         msg = [[], []]
         for reg in range(len(self.dph.REGISTERS)):
-            msg[0].append(f"  {self.dph.REGISTERS[reg]}")
+            msg[0].append(f"\t{self.dph.REGISTERS[reg]}")
             msg[1].append(f"{self.registers[reg]:5d}")
         self.pretty_print(msg)
         print("")
@@ -288,17 +288,10 @@ class DPH5005Emulator:
         with self.lock:
             if self.data_queue.full():
                 data = self.data_queue.get()
-                if (
-                    not (self.read_var.get() and data[2] == "Read")
-                    and not (self.single_write_var.get() and data[2] == "Single Write")
-                    and not (
-                        self.multiple_write_var.get() and data[2] == "Multiple Write"
-                    )
-                ):
-                    self.entry_update(self.time_entry, data[0])
-                    self.entry_update(self.command_entry, data[1])
-                    self.entry_update(self.function_entry, data[2])
-                    self.entry_update(self.response_entry, data[3])
+                self.entry_update(self.time_entry, data[0])
+                self.entry_update(self.command_entry, data[1])
+                self.entry_update(self.function_entry, data[2])
+                self.entry_update(self.response_entry, data[3])
         self.register_entry_update()
         self.root.after(
             round(self.update_rate - (time.perf_counter() - start)), self.update
@@ -341,4 +334,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     finally:
-        print("\nExiting")
+        print("Exiting")
