@@ -7,13 +7,16 @@ import queue
 import threading
 import time
 import tkinter as tk
+from typing import Iterable, Sequence
 
 import serial
 from interface import DPH5005, BYTE_PACKER, DATA_PACKER
 
 
 class DPH5005Emulator:
-    def __init__(self, port: str, interactive: bool = False, update_rate: int = 250):
+    def __init__(
+        self, port: str, interactive: bool = False, update_rate: int = 250
+    ) -> None:
         self.port = serial.Serial(port, timeout=1)
         self.dph = DPH5005()
         self.update_rate = update_rate
@@ -33,8 +36,8 @@ class DPH5005Emulator:
             0,  # ON/OFF
             0,  # B-LED
             5205,  # MODEL
-            255,
-        ]  # VERSION
+            255,  # VERSION
+        ]
 
         self.register_entries = list()
 
@@ -46,7 +49,7 @@ class DPH5005Emulator:
         else:
             self.emulator()
 
-    def __gui_setup(self):
+    def __gui_setup(self) -> None:
         root = tk.Tk()
         self.root = root
         root.grid_columnconfigure(index=1, weight=1)
@@ -151,7 +154,7 @@ class DPH5005Emulator:
         root.after(0, self.update)
         root.mainloop()
 
-    def address_validate(self, *args):
+    def address_validate(self, name: str, idx: str, op: str) -> None:
         value = self.address_entry_var.get()
         if value == "":
             return
@@ -166,7 +169,7 @@ class DPH5005Emulator:
             return
         self.address = value
 
-    def register_validate(self, var, index):
+    def register_validate(self, var: tk.StringVar, index: int) -> None:
         value = var.get()
         if value == "":
             return
@@ -185,7 +188,7 @@ class DPH5005Emulator:
                 self.registers[index] = value
 
     @staticmethod
-    def pretty_print(data):
+    def pretty_print(data: Sequence[Iterable]) -> None:
         label = data[0]
         len_label = len(max(data[0]))
         value = [str(v) for v in data[1]]
@@ -193,10 +196,10 @@ class DPH5005Emulator:
         for lbl, val in zip(label, value):
             print(f"{lbl:{len_label}}: {val:{len_value}}")
 
-    def print_info(self):
+    def print_info(self) -> None:
         # Print out configuration
         print("DPH5005 Emulator")
-        msg = (["Port", "Address", "Registers"], [self.port.port, self.address, ""])
+        msg = (("Port", "Address", "Registers"), (self.port.port, self.address, ""))
         self.pretty_print(msg)
         msg = [[], []]
         for reg in range(len(self.dph.REGISTERS)):
@@ -205,7 +208,7 @@ class DPH5005Emulator:
         self.pretty_print(msg)
         print("")
 
-    def emulator(self):
+    def emulator(self) -> None:
         self.print_info()
         while True:
             if self.port.in_waiting != 0:
@@ -280,7 +283,7 @@ class DPH5005Emulator:
             else:
                 time.sleep(0.001)  # Small sleep
 
-    def update(self):
+    def update(self) -> None:
         start = time.perf_counter()
         with self.lock:
             if self.data_queue.full():
@@ -301,7 +304,7 @@ class DPH5005Emulator:
             round(self.update_rate - (time.perf_counter() - start)), self.update
         )
 
-    def register_entry_update(self):
+    def register_entry_update(self) -> None:
         for i in range(0, len(self.register_entries)):
             if self.register_entries[i].get() != "" and self.registers[i] != int(
                 self.register_entries[i].get()
@@ -309,7 +312,7 @@ class DPH5005Emulator:
                 self.register_entries[i].set(self.registers[i])
 
     @staticmethod
-    def entry_update(entry, text):
+    def entry_update(entry: tk.Entry, text: str) -> None:
         if entry["state"] == tk.DISABLED:
             entry["state"] = tk.NORMAL
             entry.delete(0, tk.END)
