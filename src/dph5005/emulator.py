@@ -190,8 +190,8 @@ class DPH5005Emulator:
     @staticmethod
     def pretty_print(data: Sequence[Iterable]) -> None:
         label = data[0]
-        len_label = len(max(data[0]))
-        value = [str(v) for v in data[1]]
+        len_label = max(map(len, data[0]))
+        value = tuple(map(str, data[1]))
         len_value = len(max(value))
         for lbl, val in zip(label, value):
             print(f"{lbl:{len_label}}: {val:{len_value}}")
