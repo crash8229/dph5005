@@ -78,16 +78,16 @@ class DPH5005Emulator:
             selectcolor=bg_color,
         ).pack(side=tk.LEFT)
 
-        self.address_entry = tk.StringVar(name="address")
-        self.address_entry.set(f"{self.address}")
-        self.address_entry.trace("w", self.address_validate)
+        self.address_entry_var = tk.StringVar(name="address")
+        self.address_entry_var.set(f"{self.address}")
+        self.address_entry_var.trace("w", self.address_validate)
         tk.Label(root, text="Device Address: ").grid(row=1, column=0, sticky=tk.W)
         address_entry = tk.Entry(
             root,
             width=5,
             state=tk.NORMAL,
             justify=tk.CENTER,
-            textvariable=self.address_entry,
+            textvariable=self.address_entry_var,
         )
         address_entry.grid(row=1, column=1, sticky=tk.W)
 
@@ -155,17 +155,17 @@ class DPH5005Emulator:
         root.mainloop()
 
     def address_validate(self, *args):
-        value = self.address_entry.get()
+        value = self.address_entry_var.get()
         if value == "":
             return
         try:
             value = int(value)
         except ValueError:
-            self.address_entry.set(self.address)
+            self.address_entry_var.set(self.address)
             return
         limit = self.dph.LIMITS["ADDRESS"]
         if value < limit[0] or value > limit[1]:
-            self.address_entry.set(self.address)
+            self.address_entry_var.set(self.address)
             return
         self.address = value
 
