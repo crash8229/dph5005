@@ -4,19 +4,16 @@ import argparse
 import binascii
 import datetime
 import queue
-import struct
 import threading
 import time
 import tkinter as tk
 
 import serial
-from interface import DPH5005
+from interface import DPH5005, BYTE_PACKER, DATA_PACKER
 
 
 class DPH5005Emulator:
     def __init__(self, port: str, interactive: bool = False, update_rate: int = 250):
-        self.byte_packer = struct.Struct(">B")
-        self.data_packer = struct.Struct(">H")
         self.port = serial.Serial(port, timeout=1)
         self.dph = DPH5005()
         self.update_rate = update_rate
@@ -220,17 +217,17 @@ class DPH5005Emulator:
                     continue
                 mode = command[1:2]
                 response = None
-                starting_register = self.data_packer.unpack(command[2:4])[0]
+                starting_register = DATA_PACKER.unpack(command[2:4])[0]
                 print("Device Address: {0}".format(address))
                 print("Time Received: {0}".format(time_received))
                 print("Received Command: {0}".format(binascii.hexlify(command)))
                 if mode == b"\x03":
                     mode = "Read"
                     print("Function: Read")
-                    num_of_reg = self.data_packer.unpack(command[4:6])[0]
-                    response = command[:2] + self.byte_packer.pack(num_of_reg * 2)
+                    num_of_reg = DATA_PACKER.unpack(command[4:6])[0]
+                    response = command[:2] + BYTE_PACKER.pack(num_of_reg * 2)
                     for i in range(0, num_of_reg):
-                        response += self.data_packer.pack(
+                        response += DATA_PACKER.pack(
                             self.registers[starting_register + i]
                         )
                     response += self.dph.get_crc(response)
@@ -239,9 +236,9 @@ class DPH5005Emulator:
                 elif mode == b"\x06":
                     mode = "Single Write"
                     print("Function: Single Write")
-                    data = self.data_packer.unpack(command[4:6])[0]
+                    data = DATA_PACKER.unpack(command[4:6])[0]
                     self.registers[starting_register] = data
-                    response = command[:4] + self.data_packer.pack(
+                    response = command[:4] + DATA_PACKER.pack(
                         self.registers[starting_register]
                     )
                     response += self.dph.get_crc(response)
@@ -254,9 +251,9 @@ class DPH5005Emulator:
                     bytes_written = command[6]
                     data = command[7 : 7 + bytes_written]
                     for i in range(0, bytes_written, 2):
-                        self.registers[
-                            starting_register + i // 2
-                        ] = self.data_packer.unpack(data[i : i + 2])[0]
+                        self.registers[starting_register + i // 2] = DATA_PACKER.unpack(
+                            data[i : i + 2]
+                        )[0]
                     response = command[:6] + self.dph.get_crc(command[:6])
                     print("Response: {0}".format(binascii.hexlify(response)))
                     self.port.write(response)
