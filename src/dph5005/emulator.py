@@ -146,6 +146,9 @@ class DPH5005Emulator:
             ).grid(row=r, column=1, sticky=tk.W)
             r += 1
 
+        # Make window non-resizable
+        root.resizable(False, False)
+
         self.thread = threading.Thread(
             target=self.emulator, name="emulator", daemon=True
         )
