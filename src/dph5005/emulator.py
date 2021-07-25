@@ -1,16 +1,91 @@
 #!/usr/bin/env python3
 
 import argparse
-import binascii
 import datetime
 import queue
 import threading
 import time
 import tkinter as tk
-from typing import Iterable, Sequence
+from math import ceil
+from typing import Collection, Sequence, Optional
 
 import serial
-from interface import DPH5005, BYTE_PACKER, DATA_PACKER
+from interface import DPH5005, BYTE_PACKER, DATA_PACKER, FUNCTION
+
+
+def bytes_to_hex(data: bytes, bytes_per_line: Optional[int] = 16) -> str:
+    hex_str = [data[i: i + 1].hex() for i in range(len(data))]
+    if bytes_per_line is None:
+        n = len(hex_str)
+    else:
+        n = bytes_per_line
+    hex_str = [
+        " ".join(hex_str[j: j + n])
+        if j + n < len(hex_str)
+        else " ".join(hex_str[j:])
+        for j in range(0, ceil(len(hex_str) / n) * n, n)
+    ]
+    return "\n".join(hex_str).upper()
+
+
+# TODO: Finish this
+# Convert values to string. If sequence encountered, then call itself with that sequence
+def _process_pretty_print_data(dataset: Sequence[Sequence], lvl: int = 0) -> Sequence[Sequence]:
+    results = ([], [])
+    # for value in dataset:
+    #     if not isinstance(value, str) and isinstance(value, Collection):
+    #         result = _process_pretty_print_data(value, lvl + 1)
+    #         results[0].extend(result[0])
+    #         results[1].extend(result[1])
+    #     else:
+    #         results[0].append(":")
+    #         results[1].append(str(value))
+    # return results
+    for idx, pair in enumerate(zip(dataset[0], dataset[1])):
+        label, value = pair
+        if not isinstance(value, str) and isinstance(value, Collection):
+            results[0].append(label)
+            results[1].append("")
+            result = _process_pretty_print_data(value)
+            results[0].extend(result[0])
+            results[1].extend(result[0])
+        else:
+            results[0].append(label)
+            results[1].append(str(value))
+        print(idx, pair)
+    return results
+
+
+# TODO: Apply new recursive method when done
+def pretty_print(data: Sequence[Sequence]) -> None:
+    if len(data[0]) != len(data[1]):
+        raise ValueError("Expected both collections to be the same size!")
+
+    # print_data = ([], [])
+    # for idx, pair in enumerate(zip(data[0], data[1])):
+    #     label, value = pair
+    #     if not isinstance(value, str) and isinstance(value, Collection):
+    #         print_data[0].append(label)
+    #         print_data[1].append("")
+    #         result = _process_pretty_print_data(value)
+    #         print_data[0].extend(result[0])
+    #         print_data[1].extend(result[0])
+    #     else:
+    #         print_data[0].append(label)
+    #         print_data[1].append(str(value))
+    #     print(idx, pair)
+
+    print(_process_pretty_print_data(data))
+    return
+
+    label = data[0]
+    len_label = max(map(len, data[0]))
+    value = tuple(map(str, data[1]))
+    for lbl, val in zip(label, value):
+        val = val.split("\n")
+        print(f"{lbl:{len_label}}: {val.pop(0)}")
+        for v in val:
+            print(f"{'':{len_label}}: {v}")
 
 
 class DPH5005Emulator:
@@ -190,25 +265,14 @@ class DPH5005Emulator:
             if 0 <= value <= 65535:
                 self.registers[index] = value
 
-    @staticmethod
-    def pretty_print(data: Sequence[Iterable]) -> None:
-        label = data[0]
-        len_label = max(map(len, data[0]))
-        value = tuple(map(str, data[1]))
-        len_value = len(max(value))
-        for lbl, val in zip(label, value):
-            print(f"{lbl:{len_label}}: {val:{len_value}}")
-
     def print_info(self) -> None:
         # Print out configuration
         print("DPH5005 Emulator")
-        msg = (("Port", "Address", "Registers"), (self.port.port, self.address, ""))
-        self.pretty_print(msg)
-        msg = [[], []]
+        msg = (["Port", "Address", "Registers"], [self.port.port, self.address, ""])
         for reg in range(len(self.dph.REGISTERS)):
-            msg[0].append(f"\t{self.dph.REGISTERS[reg]}")
+            msg[0].append(f" |_ {self.dph.REGISTERS[reg]}")
             msg[1].append(f"{self.registers[reg]:5d}")
-        self.pretty_print(msg)
+        pretty_print(msg)
         print("")
 
     def emulator(self) -> None:
@@ -221,15 +285,12 @@ class DPH5005Emulator:
                 device_address = self.address
                 if address != device_address:
                     continue
-                mode = command[1:2]
-                response = None
+                mode_byte = command[1:2]
+                response = "N/A"
                 starting_register = DATA_PACKER.unpack(command[2:4])[0]
-                print("Device Address: {0}".format(address))
-                print("Time Received: {0}".format(time_received))
-                print("Received Command: {0}".format(binascii.hexlify(command)))
-                if mode == b"\x03":
-                    mode = "Read"
-                    print("Function: Read")
+                # mode_byte = b"\x00"
+                if mode_byte == FUNCTION["read"]:
+                    mode = f"Read (0x{mode_byte.hex()})"
                     num_of_reg = DATA_PACKER.unpack(command[4:6])[0]
                     response = command[:2] + BYTE_PACKER.pack(num_of_reg * 2)
                     for i in range(0, num_of_reg):
@@ -237,23 +298,20 @@ class DPH5005Emulator:
                             self.registers[starting_register + i]
                         )
                     response += self.dph.get_crc(response)
-                    print("Response: {0}".format(binascii.hexlify(response)))
                     self.port.write(response)
-                elif mode == b"\x06":
-                    mode = "Single Write"
-                    print("Function: Single Write")
+                    response = bytes_to_hex(response)
+                elif mode_byte == FUNCTION["single_write"]:
+                    mode = f"Single Write (0x{mode_byte.hex()})"
                     data = DATA_PACKER.unpack(command[4:6])[0]
                     self.registers[starting_register] = data
                     response = command[:4] + DATA_PACKER.pack(
                         self.registers[starting_register]
                     )
                     response += self.dph.get_crc(response)
-                    print("Response: {0}".format(binascii.hexlify(response)))
                     self.port.write(response)
-                elif mode == b"\x10":
-                    mode = "Multiple Write"
-                    print("Function: Multiple Write")
-                    # num_of_reg = data_packer.unpack(command[4:6])[0]  # Seems I don't need this info
+                    response = bytes_to_hex(response)
+                elif mode_byte == FUNCTION["multiple_write"]:
+                    mode = f"Multiple Write (0x{mode_byte.hex()})"
                     bytes_written = command[6]
                     data = command[7 : 7 + bytes_written]
                     for i in range(0, bytes_written, 2):
@@ -261,16 +319,29 @@ class DPH5005Emulator:
                             data[i : i + 2]
                         )[0]
                     response = command[:6] + self.dph.get_crc(command[:6])
-                    print("Response: {0}".format(binascii.hexlify(response)))
                     self.port.write(response)
+                    response = bytes_to_hex(response)
                 else:
-                    print("Function: Unknown Function")
+                    mode = f"Unknown Function (0x{mode_byte.hex()})"
+                msg = (
+                    ["Device Address", "Time Received", "Received Command"],
+                    [address, time_received, bytes_to_hex(command)],
+                )
+                msg[0].extend(["Function", "Response", "Actions"])
+                msg[1].extend([mode, response, ""])
+                pretty_print(msg)
                 print("")
                 if (
                     self.__interactive
-                    and not (self.read_var.get() and mode == "Read")
-                    and not (self.single_write_var.get() and mode == "Single Write")
-                    and not (self.multiple_write_var.get() and mode == "Multiple Write")
+                    and not (self.read_var.get() and mode_byte == FUNCTION["read"])
+                    and not (
+                        self.single_write_var.get()
+                        and mode_byte == FUNCTION["single_write"]
+                    )
+                    and not (
+                        self.multiple_write_var.get()
+                        and mode_byte == FUNCTION["multiple_write"]
+                    )
                 ):
                     with self.lock:
                         if self.data_queue.full():
@@ -278,9 +349,9 @@ class DPH5005Emulator:
                         self.data_queue.put(
                             [
                                 time_received,
-                                binascii.hexlify(command),
+                                bytes_to_hex(command),
                                 mode,
-                                binascii.hexlify(response),
+                                response,
                             ]
                         )
             else:
