@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import argparse
 import struct
 import threading
 from typing import Optional, Dict, Tuple, Union, Sequence
@@ -248,8 +248,12 @@ class DPH5005:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog="DPH5005 Interface")
+    parser.add_argument("port", help="Port of the DPH5005")
+    args = parser.parse_args()
+
     dph = DPH5005()
-    dph.connect_port("/dev/tnt0")
+    dph.connect_port(args.port)
     print(dph.send_command(address=1, mode="read", register="V-SET", num_reg=11))
     print(dph.send_command(1, "read", "MODEL", num_reg=1))
     print(dph.send_command(address=1, mode="single_write", register="V-SET", data=11))
