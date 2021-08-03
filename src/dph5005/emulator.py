@@ -7,80 +7,65 @@ import threading
 import time
 import tkinter as tk
 from math import ceil
-from typing import Collection, Sequence, Optional
+from typing import Collection, Sequence, Optional, Any
 
 import serial
 from interface import DPH5005, BYTE_PACKER, DATA_PACKER, FUNCTION
 
 
 def bytes_to_hex(data: bytes, bytes_per_line: Optional[int] = 16) -> str:
-    hex_str = [data[i: i + 1].hex() for i in range(len(data))]
+    hex_str = [data[i : i + 1].hex() for i in range(len(data))]
     if bytes_per_line is None:
         n = len(hex_str)
     else:
         n = bytes_per_line
     hex_str = [
-        " ".join(hex_str[j: j + n])
-        if j + n < len(hex_str)
-        else " ".join(hex_str[j:])
+        " ".join(hex_str[j : j + n]) if j + n < len(hex_str) else " ".join(hex_str[j:])
         for j in range(0, ceil(len(hex_str) / n) * n, n)
     ]
     return "\n".join(hex_str).upper()
 
 
-# TODO: Finish this
 # Convert values to string. If sequence encountered, then call itself with that sequence
-def _process_pretty_print_data(dataset: Sequence[Sequence], lvl: int = 0) -> Sequence[Sequence]:
+def _process_pretty_print_data(
+    dataset: Sequence[Sequence], lvl: int = 0
+) -> Sequence[Sequence]:
+    def is_iter_not_str(o: Any) -> bool:
+        return not isinstance(o, str) and isinstance(o, Collection)
+
     results = ([], [])
-    # for value in dataset:
-    #     if not isinstance(value, str) and isinstance(value, Collection):
-    #         result = _process_pretty_print_data(value, lvl + 1)
-    #         results[0].extend(result[0])
-    #         results[1].extend(result[1])
-    #     else:
-    #         results[0].append(":")
-    #         results[1].append(str(value))
-    # return results
-    for idx, pair in enumerate(zip(dataset[0], dataset[1])):
-        label, value = pair
-        if not isinstance(value, str) and isinstance(value, Collection):
-            results[0].append(label)
+    prefix = f"{' ' * lvl}|_ " if lvl else ""
+
+    for label, value in zip(dataset[0], dataset[1]):
+        is_iter = is_iter_not_str(value)
+        if (
+            is_iter
+            and len(value) == 2
+            and is_iter_not_str(value[0])
+            and is_iter_not_str(value[1])
+        ):
+            results[0].append(f"{prefix}{label}")
             results[1].append("")
-            result = _process_pretty_print_data(value)
+            result = _process_pretty_print_data(value, lvl + 1)
             results[0].extend(result[0])
-            results[1].extend(result[0])
+            results[1].extend(result[1])
+        elif is_iter:
+            results[0].append(f"{prefix}{label}")
+            results[1].append("\n".join(map(str, value)))
         else:
-            results[0].append(label)
-            results[1].append(str(value))
-        print(idx, pair)
+            results[0].append(f"{prefix}{label}")
+            results[1].append(f"{value}")
+
     return results
 
 
-# TODO: Apply new recursive method when done
 def pretty_print(data: Sequence[Sequence]) -> None:
     if len(data[0]) != len(data[1]):
         raise ValueError("Expected both collections to be the same size!")
-
-    # print_data = ([], [])
-    # for idx, pair in enumerate(zip(data[0], data[1])):
-    #     label, value = pair
-    #     if not isinstance(value, str) and isinstance(value, Collection):
-    #         print_data[0].append(label)
-    #         print_data[1].append("")
-    #         result = _process_pretty_print_data(value)
-    #         print_data[0].extend(result[0])
-    #         print_data[1].extend(result[0])
-    #     else:
-    #         print_data[0].append(label)
-    #         print_data[1].append(str(value))
-    #     print(idx, pair)
-
-    print(_process_pretty_print_data(data))
-    return
-
+    data = _process_pretty_print_data(data)  # Expand the data
     label = data[0]
     len_label = max(map(len, data[0]))
-    value = tuple(map(str, data[1]))
+    value = data[1]
     for lbl, val in zip(label, value):
         val = val.split("\n")
         print(f"{lbl:{len_label}}: {val.pop(0)}")
@@ -268,10 +253,13 @@ class DPH5005Emulator:
     def print_info(self) -> None:
         # Print out configuration
         print("DPH5005 Emulator")
-        msg = (["Port", "Address", "Registers"], [self.port.port, self.address, ""])
+        msg = (
+            ["Port", "Address", "Registers"],
+            [self.port.port, self.address, [[], []]],
+        )
         for reg in range(len(self.dph.REGISTERS)):
-            msg[0].append(f" |_ {self.dph.REGISTERS[reg]}")
-            msg[1].append(f"{self.registers[reg]:5d}")
+            msg[1][2][0].append(self.dph.REGISTERS[reg])
+            msg[1][2][1].append(f"{self.registers[reg]:5d}")
         pretty_print(msg)
         print("")
 
@@ -287,16 +275,17 @@ class DPH5005Emulator:
                     continue
                 mode_byte = command[1:2]
                 response = "N/A"
+                actions = ["Reg    Val"]
                 starting_register = DATA_PACKER.unpack(command[2:4])[0]
-                # mode_byte = b"\x00"
                 if mode_byte == FUNCTION["read"]:
                     mode = f"Read (0x{mode_byte.hex()})"
                     num_of_reg = DATA_PACKER.unpack(command[4:6])[0]
                     response = command[:2] + BYTE_PACKER.pack(num_of_reg * 2)
                     for i in range(0, num_of_reg):
-                        response += DATA_PACKER.pack(
-                            self.registers[starting_register + i]
-                        )
+                        reg = starting_register + i
+                        val = self.registers[reg]
+                        response += DATA_PACKER.pack(val)
+                        actions.append(f"{reg:3d} -> {val}")
                     response += self.dph.get_crc(response)
                     self.port.write(response)
                     response = bytes_to_hex(response)
@@ -310,25 +299,30 @@ class DPH5005Emulator:
                     response += self.dph.get_crc(response)
                     self.port.write(response)
                     response = bytes_to_hex(response)
+                    actions.append(
+                        f"{starting_register:3d} <- {self.registers[starting_register]}"
+                    )
                 elif mode_byte == FUNCTION["multiple_write"]:
                     mode = f"Multiple Write (0x{mode_byte.hex()})"
                     bytes_written = command[6]
                     data = command[7 : 7 + bytes_written]
                     for i in range(0, bytes_written, 2):
-                        self.registers[starting_register + i // 2] = DATA_PACKER.unpack(
-                            data[i : i + 2]
-                        )[0]
+                        reg = starting_register + i // 2
+                        val = DATA_PACKER.unpack(data[i : i + 2])[0]
+                        self.registers[reg] = val
+                        actions.append(f"{reg:3d} <- {val}")
                     response = command[:6] + self.dph.get_crc(command[:6])
                     self.port.write(response)
                     response = bytes_to_hex(response)
                 else:
                     mode = f"Unknown Function (0x{mode_byte.hex()})"
+                    actions = ["N/A"]
                 msg = (
                     ["Device Address", "Time Received", "Received Command"],
                     [address, time_received, bytes_to_hex(command)],
                 )
                 msg[0].extend(["Function", "Response", "Actions"])
-                msg[1].extend([mode, response, ""])
+                msg[1].extend([mode, response, actions])
                 pretty_print(msg)
                 print("")
                 if (
